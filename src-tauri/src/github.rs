@@ -1,3 +1,5 @@
+use std::process::{Command, Output, Stdio};
+
 use reqwest::blocking::Client;
 use serde::Deserialize;
 
@@ -23,8 +25,9 @@ pub fn connection_status() -> GitHubConnectionStatus {
             connected: false,
             status: "Requires authentication".to_string(),
             username: None,
-            message: "Set GITHUB_TOKEN or GH_TOKEN before launching Sync to enable GitHub API access."
-                .to_string(),
+            message:
+                "Login with GitHub CLI or set GITHUB_TOKEN/GH_TOKEN before launching Sync."
+                    .to_string(),
         };
     };
 
@@ -64,7 +67,8 @@ pub fn connection_status() -> GitHubConnectionStatus {
 
 pub fn list_repositories(limit: u8) -> Result<Vec<GitHubRepositorySummary>, String> {
     let token = github_token().ok_or_else(|| {
-        "GitHub is not authenticated. Set GITHUB_TOKEN or GH_TOKEN before launching Sync.".to_string()
+        "GitHub is not authenticated. Login with GitHub CLI or set GITHUB_TOKEN/GH_TOKEN."
+            .to_string()
     })?;
     let page_size = limit.clamp(1, 100);
     let url = format!(
@@ -111,7 +115,7 @@ pub fn start_cli_login() -> GitHubLoginResult {
         };
     }
 
-    match std::process::Command::new("gh")
+    match Command::new("gh")
         .args([
             "auth",
             "login",
@@ -146,6 +150,7 @@ fn github_token() -> Option<String> {
                 .ok()
                 .filter(|token| !token.trim().is_empty())
         })
+        .or_else(github_cli_token)
 }
 
 fn client() -> Client {
@@ -156,9 +161,7 @@ fn client() -> Client {
 }
 
 fn github_cli_available() -> Result<(), String> {
-    let output = std::process::Command::new("gh")
-        .arg("--version")
-        .output()
+    let output = hidden_command_output("gh", &["--version"])
         .map_err(|error| format!("GitHub CLI is not available: {error}"))?;
 
     if output.status.success() {
@@ -166,4 +169,36 @@ fn github_cli_available() -> Result<(), String> {
     } else {
         Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
     }
+}
+
+fn github_cli_token() -> Option<String> {
+    let output = hidden_command_output("gh", &["auth", "token"]).ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if token.is_empty() {
+        None
+    } else {
+        Some(token)
+    }
+}
+
+fn hidden_command_output(program: &str, args: &[&str]) -> std::io::Result<Output> {
+    let mut command = Command::new(program);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+
+    command.output()
 }

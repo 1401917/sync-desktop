@@ -17,6 +17,8 @@ winget install --id GitHub.cli -e
 gh auth login --web --git-protocol https
 ```
 
+Sync checks `gh auth token` after CLI login, so the desktop app can use the same GitHub account for read-only account and repository status.
+
 Alternative:
 
 ```powershell

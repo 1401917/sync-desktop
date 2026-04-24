@@ -15,7 +15,7 @@ This repository contains the MVP desktop foundation:
 - Rust security primitives for risk classification, path safety, and secret masking
 - Project folder scanning with sensitive file detection
 - Git read tooling
-- GitHub API status/repository listing when authenticated
+- GitHub API status/repository listing through `GITHUB_TOKEN`, `GH_TOKEN`, or GitHub CLI auth
 - GitHub CLI login launcher
 - MCP command/endpoint connection probe
 - Connectors management surface
@@ -28,7 +28,7 @@ This repository contains the MVP desktop foundation:
 - Rust toolchain through rustup
 - Visual Studio 2022 Build Tools with C++ workload
 - Git
-- Optional: GitHub CLI (`gh`) for browser-based GitHub login
+- Optional: GitHub CLI (`gh`) for account login and token discovery
 
 ## Install
 
@@ -91,6 +91,8 @@ npm run tauri:dev
 ```powershell
 gh auth login --web --git-protocol https
 ```
+
+After CLI login, Sync can read the stored CLI token with `gh auth token` and use it for safe GitHub read actions.
 
 Inside Sync, open the GitHub screen and use:
 

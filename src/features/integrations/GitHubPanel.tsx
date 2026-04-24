@@ -51,7 +51,7 @@ export function GitHubPanel() {
         </div>
         <div>
           <h1>GitHub</h1>
-          <p>Read account status and repositories through the GitHub API when a token is available.</p>
+          <p>Read account status and repositories through GitHub CLI auth or a configured token.</p>
         </div>
       </div>
 
@@ -69,7 +69,7 @@ export function GitHubPanel() {
       <div className="integration-card">
         <span>Status</span>
         <strong>{status?.status ?? "Not checked"}</strong>
-        <p>{status?.message ?? "Set GITHUB_TOKEN or GH_TOKEN before launching Sync to connect."}</p>
+        <p>{status?.message ?? "Login with GitHub CLI or set GITHUB_TOKEN/GH_TOKEN to connect."}</p>
       </div>
 
       {error ? <div className="integration-error">{error}</div> : null}
