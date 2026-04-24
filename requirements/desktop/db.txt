@@ -1,0 +1,2224 @@
+You are defining the complete database and data storage specification for a desktop AI coding workspace named Sync.
+
+This is NOT a visual design task.
+Do not design UI.
+Do not write frontend code.
+Do not generate implementation files.
+Do not focus on colors, layout, or styling.
+
+Focus only on:
+- database behavior
+- data storage design
+- what data should be stored
+- how data should be organized
+- what should be stored locally
+- what should be stored in SQLite
+- what may optionally be stored in PostgreSQL
+- what should be stored in JSON, TOML, or YAML config files
+- how Sync should store projects, sessions, messages, tasks, agents, tools, permissions, MCP, connectors, GitHub data, history, file snapshots, diffs, logs, settings, and model configuration
+- how data should be queried, indexed, migrated, exported, imported, backed up, and cleaned up
+- how sensitive data should be protected
+
+Product name:
+Sync
+
+Product type:
+Sync is a Windows desktop AI coding workspace. It helps users open local software projects, chat with AI agents, create structured tasks, inspect files, propose diffs, run approved tools, use MCP servers, connect external services, manage Git/GitHub workflows, and keep a full local history of everything.
+
+Technology stack already selected:
+
+Core App / Desktop:
+- TypeScript
+- Rust
+
+UI / Design:
+- TSX
+- CSS
+- Tailwind CSS
+
+AI / Agents:
+- TypeScript
+- Python
+
+Database / Data Store:
+- SQL
+- SQLite
+- PostgreSQL
+
+Local Storage / Config:
+- JSON
+- TOML
+- YAML
+
+API / Backend Communication:
+- TypeScript
+- Rust
+- Python
+
+Automation / Windows Tools:
+- PowerShell
+
+Build / Package / DevOps:
+- JavaScript
+- TypeScript
+- Rust
+- Bash
+- PowerShell
+
+Recommended Final Stack:
+- TypeScript
+- TSX
+- Rust
+- Python
+- SQL
+- SQLite
+- JSON
+- TOML
+- YAML
+- CSS
+- Tailwind CSS
+- PowerShell
+
+
+DATABASE GOAL
+
+Sync needs a serious, reliable, local-first data system.
+
+The database should allow Sync to:
+1. Remember projects.
+2. Store AI conversations.
+3. Store messages and model metadata.
+4. Store task graphs.
+5. Store ignored, skipped, completed, failed, and blocked tasks.
+6. Store file changes and diffs.
+7. Store file snapshots for rollback.
+8. Store AI tool calls.
+9. Store Git and GitHub actions.
+10. Store MCP servers and MCP tool calls.
+11. Store connectors and connector usage history.
+12. Store agent runs, agent handoffs, and agent logs.
+13. Store project memory.
+14. Store prompt templates.
+15. Store settings.
+16. Store permissions.
+17. Store model/provider configuration.
+18. Store logs and diagnostics.
+19. Support export/import.
+20. Support backup and restore.
+21. Protect sensitive data.
+22. Work fast even after many sessions.
+
+
+DATABASE STRATEGY
+
+Use SQLite as the default local database.
+
+SQLite should be the main local datastore because Sync is a desktop app and must work offline, locally, quickly, and without requiring a server.
+
+SQLite should store:
+- projects
+- sessions
+- messages
+- tasks
+- task graph dependencies
+- agents
+- agent runs
+- tool calls
+- history
+- file changes
+- diffs
+- snapshots metadata
+- Git actions
+- GitHub actions
+- MCP servers
+- MCP calls
+- connectors
+- connector calls
+- prompt templates
+- project memory
+- settings metadata
+- permissions
+- logs
+- diagnostics
+- model usage
+- audit events
+
+PostgreSQL should be optional and future-oriented.
+
+PostgreSQL may be used later for:
+- cloud sync
+- team accounts
+- multi-device sync
+- collaborative projects
+- shared prompts
+- organization-level history
+- remote analytics
+- hosted workspace memory
+- shared agent configurations
+- enterprise deployment
+
+Do not require PostgreSQL for the MVP.
+
+JSON, TOML, and YAML should be used for local config and portable settings, not as the main relational data system.
+
+Use JSON for:
+- app settings export
+- prompt template export/import
+- connector configuration export/import
+- model profile export/import
+- session export
+- tool log export
+- project metadata export
+- structured agent configuration
+
+Use TOML for:
+- stable local app configuration
+- advanced developer configuration
+- Rust/Tauri-style native configuration
+- low-level app preferences
+
+Use YAML for:
+- readable workflow definitions
+- agent workflow presets
+- MCP server presets
+- prompt packs
+- automation recipes
+- user-editable configuration templates
+
+Important rule:
+SQLite is the source of truth for runtime app data.
+JSON/TOML/YAML are config/export formats.
+PostgreSQL is optional for future sync/cloud mode.
+
+
+DATABASE LOCATION
+
+Sync should store local data in the user app data directory.
+
+Recommended storage areas:
+- Main SQLite database: local app data directory
+- Backups: local app data backups directory
+- File snapshots: local app data snapshots directory
+- Exported data: user-selected folder
+- Logs: local app data logs directory
+- Config files: local app config directory
+
+The database path should be visible in Settings under Storage.
+
+The user should be able to:
+- open storage location
+- export database
+- backup database
+- restore database
+- clear history
+- clear cache
+- delete project data
+- reset app data
+
+
+MAIN DATABASE ENTITIES
+
+The database should include these main entities:
+
+1. app_settings
+2. user_preferences
+3. model_providers
+4. model_profiles
+5. projects
+6. project_paths
+7. project_memory
+8. project_files_index
+9. sessions
+10. messages
+11. message_context_items
+12. task_lists
+13. tasks
+14. task_dependencies
+15. agents
+16. agent_runs
+17. agent_handoffs
+18. tool_calls
+19. tool_permissions
+20. permission_decisions
+21. file_changes
+22. diff_previews
+23. file_snapshots
+24. git_repositories
+25. git_actions
+26. github_accounts
+27. github_repositories
+28. github_actions
+29. mcp_servers
+30. mcp_tools
+31. mcp_calls
+32. connectors
+33. connector_accounts
+34. connector_calls
+35. prompt_templates
+36. prompt_versions
+37. history_events
+38. audit_logs
+39. diagnostics_logs
+40. command_runs
+41. package_events
+42. database_connections
+43. exports
+44. imports
+45. notifications
+46. secrets_metadata
+
+
+DATA MODEL PRINCIPLES
+
+The database should be designed around traceability.
+
+Every important action should be connected to:
+- project
+- session
+- message
+- agent
+- task
+- tool call
+- file change
+- approval decision
+- history event
+- timestamp
+
+The user should be able to answer:
+- What did the AI do?
+- Why did it do it?
+- Which agent did it?
+- Which task caused it?
+- Which tool was used?
+- Which files changed?
+- Who approved it?
+- What was the result?
+- Can it be reverted?
+- Was it connected to GitHub, MCP, or a connector?
+- Was it risky?
+- Was it blocked or ignored?
+
+Use stable IDs for every important object.
+
+Each table should include:
+- id
+- created_at
+- updated_at
+- deleted_at if soft delete is useful
+- project_id if project-specific
+- session_id if session-specific
+- status if lifecycle-based
+- metadata_json for flexible future data when needed
+
+Use soft delete for important user data:
+- projects
+- sessions
+- tasks
+- prompts
+- memory records
+- snapshots
+- connectors
+
+Do not soft delete tool logs or audit logs unless the user explicitly clears history.
+
+
+CORE TABLE SPECIFICATION
+
+
+1. app_settings
+
+Purpose:
+Store global application settings.
+
+Data to store:
+- setting key
+- setting value
+- value type
+- category
+- updated time
+
+Examples:
+- startup_screen
+- default_workspace
+- theme
+- accent_color
+- language
+- telemetry_enabled
+- autosave_enabled
+- history_enabled
+- default_approval_mode
+- default_ai_mode
+
+Rules:
+- Settings can be exported to JSON.
+- Sensitive values should not be stored directly here.
+- Settings changes should create history/audit events.
+
+
+2. user_preferences
+
+Purpose:
+Store user-level behavior preferences.
+
+Data to store:
+- preferred response style
+- default agent
+- default AI mode
+- default task behavior
+- confirm before write
+- confirm before command
+- confirm before GitHub action
+- prompt composer preferences
+- sidebar preferences
+- task panel preferences
+
+Examples:
+- response_style = concise / balanced / detailed
+- task_generation = automatic / ask / disabled
+- approval_mode = manual / balanced / trusted project
+- preferred_language = English / Hebrew / mixed
+
+Rules:
+- Should be editable in Settings.
+- Should influence AI behavior.
+- Should be exportable.
+
+
+3. model_providers
+
+Purpose:
+Store AI provider definitions.
+
+Providers:
+- OpenAI
+- OpenRouter
+- Anthropic
+- Google Gemini
+- Ollama
+- Custom OpenAI-compatible provider
+
+Data to store:
+- provider name
+- provider type
+- base URL
+- auth method
+- connection status
+- last tested
+- enabled/disabled
+- error state
+- metadata
+
+Sensitive:
+- API keys should not be stored in plain text.
+- API keys should not be sent to AI context.
+- Store only key metadata in database, such as "configured: true" and masked display.
+
+Rules:
+- Provider status should be visible.
+- Provider test results should be logged.
+- Full key values must be protected outside normal database rows or encrypted.
+
+
+4. model_profiles
+
+Purpose:
+Store model choices and model behavior profiles.
+
+Data to store:
+- profile name
+- provider id
+- model id
+- role
+- max context
+- temperature
+- reasoning effort if supported
+- streaming enabled
+- fallback model
+- enabled
+
+Model roles:
+- default
+- fast
+- reasoning
+- coding
+- review
+- summarization
+- local fallback
+
+Rules:
+- Each agent can use a preferred model profile.
+- The user can change defaults in Settings.
+- Model usage should be logged per AI run.
+
+
+5. projects
+
+Purpose:
+Store known projects.
+
+Data to store:
+- project name
+- root path
+- normalized root path
+- project type
+- detected languages
+- detected frameworks
+- default branch
+- connected Git repo id
+- connected GitHub repo id
+- last opened
+- pinned/favorite
+- archived status
+- project summary
+- status
+
+Examples:
+- MainPy
+- Sync
+- DarkStudio AI
+- Steal a Time
+- Admin System
+
+Rules:
+- Each local folder opened by user creates or updates a project.
+- Project path should be treated carefully.
+- Project can be removed from Sync without deleting local files.
+- Project deletion in Sync should not delete disk content unless explicitly requested and confirmed.
+
+
+6. project_paths
+
+Purpose:
+Store allowed project folders and additional allowed folders.
+
+Data to store:
+- project id
+- path
+- path type
+- permission level
+- added by user
+- added time
+- enabled/disabled
+
+Path types:
+- root
+- allowed_extra_folder
+- excluded_folder
+- snapshot_folder
+- generated_output_folder
+
+Rules:
+- Sync can only scan allowed paths.
+- Excluded paths must not be indexed.
+- User can manage paths in Settings.
+
+
+7. project_memory
+
+Purpose:
+Store local memory for each project.
+
+Data to store:
+- memory type
+- title
+- content
+- confidence
+- source
+- source session id
+- source task id
+- stale flag
+- pinned flag
+- user editable flag
+
+Memory types:
+- project_summary
+- goal
+- decision
+- user_preference
+- coding_style
+- architecture_note
+- known_issue
+- ignored_task
+- completed_milestone
+- failed_attempt
+- connected_repository
+- stack_note
+- security_note
+
+Rules:
+- Memory must be visible and editable.
+- User can clear memory.
+- AI can propose memory updates.
+- AI should not store secrets in memory.
+- If project files contradict memory, mark memory as stale.
+- Ignored tasks should be remembered to avoid repeating them.
+
+
+8. project_files_index
+
+Purpose:
+Store file index metadata for fast project browsing and search.
+
+Data to store:
+- project id
+- file path
+- relative path
+- file name
+- extension
+- size
+- modified time
+- hash
+- language
+- file type
+- indexed status
+- ignored status
+- sensitive flag
+- binary flag
+- last scanned
+
+Rules:
+- Do not store full contents of every file by default.
+- Store metadata and optionally extracted summaries.
+- Sensitive files should be flagged.
+- Large files should be skipped or summarized.
+- Binary files should not be sent to AI context by default.
+
+
+9. sessions
+
+Purpose:
+Store AI sessions / conversations.
+
+Data to store:
+- project id
+- title
+- mode
+- selected agent
+- status
+- started_at
+- ended_at
+- last_message_at
+- summary
+- pinned
+- archived
+- model profile used
+- context summary
+
+Session statuses:
+- active
+- completed
+- paused
+- failed
+- archived
+
+Rules:
+- Sessions can be continued later.
+- Sessions should link to tasks, messages, tool calls, diffs, and history.
+- Session summary should update over time.
+- User can export a session.
+
+
+10. messages
+
+Purpose:
+Store chat messages.
+
+Data to store:
+- session id
+- role
+- content
+- content format
+- model id
+- provider id
+- token estimate
+- status
+- parent message id
+- generated task list id
+- linked tool call id
+- linked agent run id
+- error state
+
+Roles:
+- user
+- assistant
+- system
+- tool
+- developer
+- agent
+- connector
+
+Rules:
+- Store original message content.
+- Store AI responses.
+- Store summaries when needed.
+- Tool results may be stored as separate tool calls and referenced.
+- Messages should be searchable.
+
+
+11. message_context_items
+
+Purpose:
+Track what context was attached to a message or AI request.
+
+Data to store:
+- message id
+- context type
+- reference id
+- title
+- source
+- token estimate
+- included/excluded
+- reason
+
+Context types:
+- file
+- folder_summary
+- project_memory
+- task
+- diff
+- tool_result
+- MCP_result
+- connector_result
+- Git_status
+- GitHub_metadata
+- web_result
+- prompt_template
+
+Rules:
+- This helps explain why AI answered a certain way.
+- Must not include secrets unless explicitly approved.
+
+
+12. task_lists
+
+Purpose:
+Group tasks generated for a user request or workflow.
+
+Data to store:
+- session id
+- project id
+- title
+- description
+- owner agent
+- status
+- progress percentage
+- created_from_message_id
+- current_task_id
+
+Statuses:
+- active
+- paused
+- completed
+- cancelled
+- failed
+
+Rules:
+- Complex user requests create task lists.
+- Task lists can be expanded/collapsed.
+- Task lists link to history.
+
+
+13. tasks
+
+Purpose:
+Store individual tasks in a task graph.
+
+Data to store:
+- task list id
+- project id
+- session id
+- title
+- description
+- status
+- priority
+- owner agent
+- risk level
+- required tools
+- affected files
+- expected output
+- approval state
+- ignored reason
+- result summary
+- error message
+- started_at
+- completed_at
+
+Task statuses:
+- Pending
+- Ready
+- In Progress
+- Waiting for Approval
+- Waiting for Context
+- Blocked
+- Completed
+- Failed
+- Skipped
+- Ignored
+- Cancelled
+
+Rules:
+- Ignored tasks remain visible.
+- Ignored tasks must not be executed.
+- Completed tasks show a result summary.
+- Failed tasks show reason.
+- Tasks can be linked to diffs, files, tool calls, GitHub issues, commits, and MCP results.
+
+
+14. task_dependencies
+
+Purpose:
+Represent task graph dependencies.
+
+Data to store:
+- task id
+- depends_on_task_id
+- dependency type
+- required status
+
+Dependency types:
+- must_complete
+- should_complete
+- blocks
+- related
+
+Rules:
+- A task cannot run if required dependencies are not complete.
+- If a dependency is ignored, dependent tasks may become blocked or need replanning.
+
+
+15. agents
+
+Purpose:
+Store agent definitions.
+
+Agents:
+- Planner Agent
+- Coder Agent
+- Reviewer Agent
+- UI Agent
+- Security Agent
+- Git Agent
+- GitHub Agent
+- MCP Agent
+- Connector Agent
+- Diagnostics Agent
+- Memory Agent
+
+Data to store:
+- name
+- description
+- role
+- enabled
+- default mode
+- model profile id
+- permissions profile
+- system prompt reference
+- configuration JSON
+- version
+
+Rules:
+- Agents can be enabled/disabled.
+- Agents can have preferred model profiles.
+- Agent configuration should be versioned.
+
+
+16. agent_runs
+
+Purpose:
+Store every time an agent performs work.
+
+Data to store:
+- agent id
+- session id
+- project id
+- task id
+- mode
+- input summary
+- output summary
+- confidence score
+- model provider
+- model id
+- started_at
+- ended_at
+- status
+- error message
+- token usage
+- cost estimate if available
+
+Statuses:
+- requested
+- running
+- completed
+- failed
+- cancelled
+- blocked
+
+Rules:
+- Every important AI operation should create an agent run.
+- Agent runs should link to tasks and tool calls.
+- Agent runs should be searchable in History.
+
+
+17. agent_handoffs
+
+Purpose:
+Track work passed between agents.
+
+Data to store:
+- source agent id
+- target agent id
+- session id
+- task id
+- reason
+- context summary
+- timestamp
+- status
+
+Rules:
+- Handoffs should be visible in history.
+- Handoffs preserve traceability.
+
+
+18. tool_calls
+
+Purpose:
+Store all tool executions.
+
+Data to store:
+- tool name
+- tool category
+- session id
+- project id
+- task id
+- agent run id
+- input JSON
+- output JSON
+- status
+- risk level
+- approval decision id
+- started_at
+- ended_at
+- duration
+- error message
+
+Tool categories:
+- project
+- filesystem
+- code_intelligence
+- diff_patch
+- terminal
+- git
+- github
+- repository
+- mcp
+- connector
+- web
+- package_manager
+- database
+- memory
+- prompt_agent
+- task_management
+- settings
+- security
+- diagnostics
+- export_import
+
+Rules:
+- Every tool call must be logged.
+- Tool input/output should be stored carefully.
+- Sensitive values must be masked.
+- Large outputs should be summarized and optionally saved as external log files.
+
+
+19. tool_permissions
+
+Purpose:
+Store tool-level permission settings.
+
+Data to store:
+- tool name
+- category
+- default permission level
+- project-specific permission level
+- session-specific permission level
+- enabled/disabled
+- risk override if any
+
+Permission levels:
+- Disabled
+- Ask every time
+- Allow once
+- Allow for this session
+- Allow for this project
+- Always allow
+
+Rules:
+- Permission changes must be logged.
+- Critical tools should not default to Always allow.
+- Tool permissions can be global or project-specific.
+
+
+20. permission_decisions
+
+Purpose:
+Record user approval/denial decisions.
+
+Data to store:
+- requested action
+- tool name
+- risk level
+- target
+- decision
+- decision scope
+- decided by user
+- timestamp
+- reason
+- expires_at if temporary
+
+Decisions:
+- approved
+- denied
+- modified
+- cancelled
+- expired
+
+Scopes:
+- once
+- session
+- project
+- always
+
+Rules:
+- Every approval-required action links to a decision.
+- Denied actions should block related task or mark it waiting.
+
+
+21. file_changes
+
+Purpose:
+Store proposed and applied file changes.
+
+Data to store:
+- project id
+- session id
+- task id
+- file path
+- change type
+- status
+- diff preview id
+- snapshot id before
+- snapshot id after
+- applied_at
+- approved_by_decision_id
+- summary
+
+Change types:
+- create
+- update
+- append
+- rename
+- move
+- delete
+- format
+
+Statuses:
+- proposed
+- waiting_review
+- approved
+- rejected
+- applied
+- failed
+- reverted
+
+Rules:
+- Every meaningful file write should create a file change record.
+- Changes should be linked to diffs and snapshots.
+- User should be able to revert when possible.
+
+
+22. diff_previews
+
+Purpose:
+Store diff previews before applying changes.
+
+Data to store:
+- project id
+- session id
+- task id
+- title
+- summary
+- status
+- risk level
+- diff content or diff reference
+- files changed count
+- additions
+- removals
+- created_by_agent_run_id
+
+Statuses:
+- generated
+- waiting_review
+- approved
+- rejected
+- applied
+- revised
+- failed
+
+Rules:
+- Large diffs can be stored as files with database metadata.
+- Diff preview should be linked to file changes.
+- User can approve per file or per hunk if supported.
+
+
+23. file_snapshots
+
+Purpose:
+Store snapshots for rollback.
+
+Data to store:
+- project id
+- file path
+- snapshot path or content reference
+- file hash
+- file size
+- snapshot reason
+- created before change id
+- created_at
+- retention status
+
+Rules:
+- Create snapshot before modifying important files.
+- Snapshots should not store secrets unless necessary and encrypted/protected.
+- User can restore snapshot.
+- Old snapshots can be cleaned based on retention policy.
+
+
+24. git_repositories
+
+Purpose:
+Track local Git repository metadata.
+
+Data to store:
+- project id
+- repo root path
+- current branch
+- remote origin
+- default remote
+- last status summary
+- last scanned
+- dirty state
+- linked GitHub repository id
+
+Rules:
+- Git status should be periodically refreshed when project opens.
+- Do not auto-commit or push.
+- Link Git actions to history.
+
+
+25. git_actions
+
+Purpose:
+Store local Git actions.
+
+Data to store:
+- project id
+- session id
+- task id
+- action type
+- command summary
+- branch
+- remote
+- commit hash
+- status
+- approval decision id
+- output summary
+- error message
+- timestamp
+
+Action types:
+- init
+- status
+- diff
+- add
+- commit
+- branch
+- checkout
+- switch
+- pull
+- push
+- merge
+- rebase
+- stash
+- tag
+- remote_add
+- remote_remove
+
+Rules:
+- Risky Git actions need approval.
+- Push, force push, branch delete, rebase, and remote changes need explicit confirmation depending on risk.
+
+
+26. github_accounts
+
+Purpose:
+Store GitHub account connection metadata.
+
+Data to store:
+- account username
+- account id
+- display name
+- avatar URL
+- connection status
+- scopes granted
+- connected_at
+- last_checked
+- token metadata only
+
+Rules:
+- Do not store raw tokens in plain text.
+- Do not expose tokens to AI.
+- Account disconnect should revoke or remove local credentials when possible.
+
+
+27. github_repositories
+
+Purpose:
+Store GitHub repository metadata.
+
+Data to store:
+- GitHub repo id
+- owner
+- name
+- full name
+- URL
+- visibility
+- default branch
+- connected project id
+- permissions
+- archived status
+- last synced
+
+Rules:
+- Local project can link to one or more repositories if needed.
+- Visibility changes require approval.
+- Public/private state should be visible.
+
+
+28. github_actions
+
+Purpose:
+Store GitHub API actions.
+
+Data to store:
+- account id
+- repository id
+- project id
+- session id
+- task id
+- action type
+- target
+- status
+- approval decision id
+- result URL
+- error message
+- timestamp
+
+Action types:
+- create_repository
+- update_repository
+- delete_repository
+- create_issue
+- update_issue
+- close_issue
+- create_pull_request
+- update_pull_request
+- merge_pull_request
+- create_release
+- run_workflow
+- read_workflow_logs
+
+Rules:
+- Creating public repos requires approval.
+- Deleting repos requires explicit typed confirmation.
+- GitHub actions should appear in History and Project Workspace.
+
+
+29. mcp_servers
+
+Purpose:
+Store configured MCP servers.
+
+Data to store:
+- name
+- type
+- command or endpoint
+- transport
+- enabled
+- trusted status
+- permissions profile
+- last connected
+- status
+- error message
+- configuration JSON
+
+Rules:
+- MCP servers disabled by default until configured.
+- Untrusted MCP servers require approval every use.
+- MCP server config can be exported as YAML if user chooses.
+
+
+30. mcp_tools
+
+Purpose:
+Store discovered tools from MCP servers.
+
+Data to store:
+- MCP server id
+- tool name
+- description
+- input schema JSON
+- output schema JSON
+- permission level
+- risk level
+- enabled
+- last used
+
+Rules:
+- Each MCP tool can have individual permissions.
+- Tool list should refresh when server changes.
+
+
+31. mcp_calls
+
+Purpose:
+Store MCP tool usage.
+
+Data to store:
+- MCP server id
+- MCP tool id
+- session id
+- project id
+- task id
+- input JSON
+- output JSON or output reference
+- status
+- risk level
+- approval decision id
+- started_at
+- ended_at
+- error message
+
+Rules:
+- MCP calls must be logged.
+- Results can be attached as context.
+- Sensitive outputs must be masked when needed.
+
+
+32. connectors
+
+Purpose:
+Store connector definitions.
+
+Connectors:
+- GitHub
+- Google Drive
+- Gmail
+- Notion
+- Discord
+- Slack
+- Trello
+- Jira
+- Linear
+- Figma
+- Supabase
+- Firebase
+- Vercel
+- Netlify
+- OpenAI
+- OpenRouter
+- Anthropic
+- Gemini
+- Ollama
+
+Data to store:
+- connector name
+- connector type
+- enabled
+- default permission level
+- status
+- last sync
+- configuration metadata
+
+Rules:
+- Connector credentials must be protected.
+- Connector actions must be logged.
+- User can disable any connector.
+
+
+33. connector_accounts
+
+Purpose:
+Store connected account metadata for each connector.
+
+Data to store:
+- connector id
+- account display name
+- account identifier
+- scopes
+- connection status
+- connected_at
+- last_checked
+- token metadata only
+
+Rules:
+- No raw tokens in normal database text.
+- Disconnect should remove/revoke credentials when possible.
+
+
+34. connector_calls
+
+Purpose:
+Store connector usage history.
+
+Data to store:
+- connector id
+- account id
+- session id
+- project id
+- task id
+- action type
+- target
+- input summary
+- output summary
+- output reference
+- status
+- approval decision id
+- timestamp
+- error message
+
+Rules:
+- Every connector action should be traceable.
+- Write actions require approval.
+- Sending emails/messages or modifying external data requires confirmation.
+
+
+35. prompt_templates
+
+Purpose:
+Store reusable prompts.
+
+Data to store:
+- title
+- description
+- category
+- tags
+- content
+- favorite
+- created_by_user
+- active version id
+- usage count
+- last_used
+
+Categories:
+- Planning
+- Coding
+- Code Review
+- UI/UX
+- Refactor
+- Debugging
+- GitHub
+- Documentation
+- Roblox
+- Desktop Apps
+- Security
+- Connectors
+
+Rules:
+- Prompts can be imported/exported as JSON or YAML.
+- Prompt deletion should be soft delete.
+- Prompts should support versioning.
+
+
+36. prompt_versions
+
+Purpose:
+Store prompt version history.
+
+Data to store:
+- prompt template id
+- version number
+- content
+- change summary
+- created_at
+- created_by
+
+Rules:
+- User can revert to older prompt version.
+- Prompt version used in a session should be traceable.
+
+
+37. history_events
+
+Purpose:
+Central event timeline for the app.
+
+Data to store:
+- event type
+- project id
+- session id
+- task id
+- agent run id
+- tool call id
+- file change id
+- GitHub action id
+- MCP call id
+- connector call id
+- title
+- summary
+- status
+- severity
+- timestamp
+- metadata JSON
+
+Event types:
+- project_opened
+- session_started
+- message_created
+- task_created
+- task_completed
+- task_ignored
+- task_failed
+- tool_requested
+- tool_approved
+- tool_denied
+- tool_completed
+- file_change_proposed
+- file_change_applied
+- diff_generated
+- git_action
+- github_action
+- mcp_call
+- connector_call
+- permission_changed
+- setting_changed
+- error
+- export_created
+- import_completed
+
+Rules:
+- History should be searchable.
+- History should allow filtering by type.
+- History should reconstruct a session timeline.
+
+
+38. audit_logs
+
+Purpose:
+Store security-sensitive logs.
+
+Data to store:
+- action
+- actor
+- target
+- risk level
+- decision
+- timestamp
+- metadata
+- result
+
+Audit events:
+- permission change
+- secret detected
+- sensitive file read
+- command execution
+- file deletion
+- GitHub push
+- repo visibility change
+- connector write
+- MCP untrusted call
+- database migration
+- critical action confirmation
+
+Rules:
+- Audit logs should not be silently deleted.
+- Clearing audit logs should require confirmation.
+
+
+39. diagnostics_logs
+
+Purpose:
+Store diagnostics and app errors.
+
+Data to store:
+- log level
+- source
+- message
+- stack trace if available
+- project id
+- session id
+- timestamp
+- metadata
+
+Log levels:
+- debug
+- info
+- warning
+- error
+- critical
+
+Rules:
+- Debug logs can be cleaned.
+- Error logs should be exportable.
+- Sensitive values must be masked.
+
+
+40. command_runs
+
+Purpose:
+Store terminal command executions.
+
+Data to store:
+- project id
+- session id
+- task id
+- command text
+- working directory
+- shell type
+- status
+- risk level
+- approval decision id
+- stdout reference
+- stderr reference
+- exit code
+- started_at
+- ended_at
+
+Rules:
+- Exact commands must be stored.
+- Outputs can be summarized if large.
+- Sensitive output must be masked.
+- User can view command history.
+
+
+41. package_events
+
+Purpose:
+Store package/dependency actions.
+
+Data to store:
+- project id
+- package manager
+- package name
+- action
+- version before
+- version after
+- status
+- related file changes
+- approval decision id
+- timestamp
+
+Package managers:
+- npm
+- pnpm
+- yarn
+- bun
+- pip
+- poetry
+- cargo
+
+Rules:
+- Install/update/remove requires approval.
+- Lockfile changes should link to diffs.
+
+
+42. database_connections
+
+Purpose:
+Store user-configured development database connections.
+
+Supported:
+- SQLite
+- PostgreSQL
+- Supabase Postgres
+- local development databases
+
+Data to store:
+- connection name
+- database type
+- host metadata
+- database name
+- status
+- permission level
+- last tested
+- credential metadata only
+
+Rules:
+- Credentials must be protected.
+- Production connections require strong warnings.
+- Destructive database actions require explicit confirmation.
+
+
+43. exports
+
+Purpose:
+Store export records.
+
+Data to store:
+- export type
+- file path
+- project id
+- session id
+- created_at
+- status
+- included data categories
+- masked secrets flag
+
+Export types:
+- session
+- history
+- tasks
+- prompts
+- settings
+- project summary
+- tool logs
+- database backup
+
+Rules:
+- User chooses export location.
+- Secrets must be masked by default.
+- Export actions should be logged.
+
+
+44. imports
+
+Purpose:
+Store import records.
+
+Data to store:
+- import type
+- source file path
+- status
+- imported records count
+- skipped records count
+- conflict count
+- timestamp
+- error message
+
+Rules:
+- Imports should validate schema.
+- Imports should not overwrite without confirmation.
+- Conflicts should be reported.
+
+
+45. notifications
+
+Purpose:
+Store local notifications and reminders inside the app.
+
+Data to store:
+- title
+- message
+- type
+- severity
+- read/unread
+- related project/session/task
+- created_at
+
+Types:
+- task
+- approval
+- error
+- update
+- connector
+- GitHub
+- MCP
+- model
+- storage
+
+Rules:
+- Notifications should link to related objects.
+- Old notifications can be cleaned.
+
+
+46. secrets_metadata
+
+Purpose:
+Track secrets safely without storing secret values.
+
+Data to store:
+- project id
+- file path
+- secret type
+- masked preview
+- detected_at
+- risk level
+- status
+- ignored_by_user flag
+
+Secret types:
+- API key
+- token
+- password
+- private key
+- database URL
+- webhook URL
+- OAuth secret
+- cloud credential
+
+Rules:
+- Never store full secret values.
+- Store masked previews only.
+- Link to security scan history.
+- Warn before Git push if secrets are staged.
+
+
+SEARCH AND INDEXING
+
+Sync should support search across:
+- projects
+- sessions
+- messages
+- tasks
+- history events
+- file metadata
+- prompt templates
+- tool calls
+- GitHub actions
+- MCP calls
+- connector calls
+- logs
+
+Search requirements:
+- Fast local search.
+- Filter by project.
+- Filter by date.
+- Filter by type.
+- Filter by status.
+- Filter by agent.
+- Filter by risk level.
+- Filter by tool category.
+
+Recommended indexes:
+- projects root path
+- sessions project id + updated time
+- messages session id + created time
+- tasks task list id + status
+- history events project id + timestamp
+- tool calls project id + timestamp
+- file index project id + relative path
+- prompt templates category + title
+- agent runs project id + timestamp
+- permission decisions project id + timestamp
+
+Use full-text search if needed for:
+- message content
+- prompt content
+- history summaries
+- project memory
+- file summaries
+
+
+MIGRATIONS
+
+Sync should support database migrations.
+
+Migration rules:
+- Every database schema change must have a migration.
+- Migrations must be versioned.
+- Migrations must be safe and reversible when possible.
+- Sync should backup the database before risky migrations.
+- Sync should show clear error if migration fails.
+- Database version should be stored.
+
+Store:
+- schema version
+- migration history
+- migration status
+- applied timestamp
+- error message if failed
+
+
+BACKUP AND RESTORE
+
+Sync should support backups.
+
+Backup types:
+- manual backup
+- automatic backup before migration
+- automatic backup before destructive cleanup
+- scheduled local backup optional
+
+Backup should include:
+- SQLite database
+- config files
+- snapshot metadata
+- prompt templates
+- settings
+- project memory
+
+Backup should not include:
+- raw API keys unless encrypted
+- raw secrets
+- unnecessary cache
+
+Restore behavior:
+- User selects backup.
+- Sync validates backup.
+- Sync previews what will be restored.
+- User confirms restore.
+- Current state is backed up before restore.
+- Restore action is logged.
+
+
+DATA RETENTION AND CLEANUP
+
+Sync should allow cleanup policies.
+
+Cleanable data:
+- old logs
+- old command outputs
+- old tool outputs
+- old snapshots
+- old notifications
+- old cache
+- archived sessions
+- unused file index entries
+
+Do not auto-delete:
+- audit logs
+- important file snapshots
+- active project memory
+- pinned sessions
+- user prompts
+- permission decisions
+
+User should be able to:
+- clear all history
+- clear a project history
+- clear one session
+- clear old logs
+- clear cache
+- delete snapshots older than X days
+- archive sessions
+
+
+SENSITIVE DATA AND SECURITY
+
+Sensitive data rules:
+1. Do not store API keys in plain text.
+2. Do not store secrets in AI messages.
+3. Do not store full secrets in logs.
+4. Do not store full secrets in tool outputs.
+5. Mask secret-like values before saving logs.
+6. Store only metadata for detected secrets.
+7. Sensitive file reads require permission.
+8. Sensitive file content should not be used as normal AI context.
+9. Exported data should mask secrets.
+10. Debug bundles should exclude secrets.
+
+API keys:
+- Store using a secure local credential mechanism or encrypted storage.
+- Database stores only provider metadata, not raw keys.
+- Show masked key preview only.
+- User can remove or rotate keys.
+
+Secret masking:
+Examples:
+- sk-1234567890abcdef should become sk-****cdef
+- database URLs should hide username/password
+- tokens should show only first and last few characters
+
+
+SQLITE PERFORMANCE REQUIREMENTS
+
+SQLite should be optimized for desktop use.
+
+Requirements:
+- Fast startup.
+- Fast session loading.
+- Efficient history queries.
+- Efficient task queries.
+- Efficient project switching.
+- Avoid storing huge blobs directly when not needed.
+- Store large outputs as external files with database references.
+- Use indexes on frequently queried columns.
+- Use transactions for multi-step changes.
+- Use WAL mode if appropriate.
+- Avoid database corruption.
+- Validate database on startup if needed.
+
+Large data handling:
+- Large command outputs can be stored as log files with DB references.
+- Large diffs can be stored as patch files with DB metadata.
+- Large tool outputs can be summarized.
+- File snapshots can be stored in snapshot directory with DB references.
+
+
+POSTGRESQL FUTURE MODE
+
+PostgreSQL can be used in future cloud/team mode.
+
+PostgreSQL should support:
+- user accounts
+- organizations
+- shared projects
+- team history
+- cloud-synced sessions
+- shared prompt library
+- remote agent runs
+- collaborative task boards
+- shared connectors metadata
+- audit logs for teams
+
+Sync should be designed so the local SQLite schema can map reasonably to PostgreSQL later.
+
+Do not force cloud mode.
+Do not require account login for local use.
+Local-first is the default.
+
+
+CONFIG FILES
+
+Use JSON/TOML/YAML carefully.
+
+JSON:
+Use for:
+- export/import data
+- prompt packs
+- session exports
+- settings export
+- model profile exports
+- connector exports
+- agent configuration exports
+
+TOML:
+Use for:
+- local app config
+- native app config
+- developer config
+- stable machine-readable preferences
+
+YAML:
+Use for:
+- workflow recipes
+- MCP server presets
+- agent workflow definitions
+- prompt packs
+- human-editable automation templates
+
+Rules:
+- Runtime state should not live mainly in config files.
+- Runtime state belongs in SQLite.
+- Config files should be validated.
+- Invalid config should show clear errors.
+- Config imports should not overwrite without confirmation.
+
+
+DATABASE-RELATED WORKFLOWS
+
+Workflow 1: Start new session
+1. Create session row.
+2. Store initial user message.
+3. Build context and store context references.
+4. Create agent run.
+5. Create task list if needed.
+6. Store assistant response.
+7. Create history events.
+
+Workflow 2: AI proposes file changes
+1. Create task records.
+2. Create agent run record.
+3. Create diff preview.
+4. Create file change records.
+5. Wait for user approval.
+6. Store permission decision.
+7. Create snapshots.
+8. Apply file changes.
+9. Update file change status.
+10. Create history events.
+11. Update project memory if needed.
+
+Workflow 3: User ignores a task
+1. Update task status to Ignored.
+2. Store ignored reason if provided.
+3. Create history event.
+4. Add project memory record if task is important.
+5. Recompute dependent tasks.
+6. Agent must avoid executing ignored task.
+
+Workflow 4: Run command
+1. Create tool call record.
+2. Create permission request if needed.
+3. Store approval decision.
+4. Create command run record.
+5. Save stdout/stderr references.
+6. Update related task.
+7. Create history event.
+
+Workflow 5: Create GitHub repository
+1. Store GitHub action request.
+2. Store permission decision.
+3. Create or update GitHub repository metadata.
+4. Link to project.
+5. Store Git actions if local repo was initialized.
+6. Save repository link to project memory.
+7. Create history events.
+
+Workflow 6: MCP call
+1. Store MCP server/tool metadata.
+2. Create MCP call record.
+3. Store permission decision if needed.
+4. Store output or output reference.
+5. Attach result as context if selected.
+6. Create history event.
+
+Workflow 7: Connector call
+1. Create connector call record.
+2. Store approval decision if needed.
+3. Store result summary.
+4. Attach result to context if selected.
+5. Create history event.
+
+Workflow 8: Export session
+1. Select session and related data.
+2. Mask secrets.
+3. Create export file.
+4. Store export record.
+5. Create history event.
+
+
+MVP DATABASE SCOPE
+
+For MVP, implement only the essential database system.
+
+MVP tables:
+- app_settings
+- user_preferences
+- model_providers
+- model_profiles
+- projects
+- project_memory
+- project_files_index
+- sessions
+- messages
+- message_context_items
+- task_lists
+- tasks
+- task_dependencies
+- agents
+- agent_runs
+- tool_calls
+- tool_permissions
+- permission_decisions
+- file_changes
+- diff_previews
+- file_snapshots
+- git_repositories
+- git_actions
+- github_accounts
+- github_repositories
+- github_actions
+- mcp_servers
+- mcp_tools
+- mcp_calls
+- connectors
+- connector_accounts
+- connector_calls
+- prompt_templates
+- prompt_versions
+- history_events
+- audit_logs
+- diagnostics_logs
+- command_runs
+- secrets_metadata
+
+MVP can postpone:
+- PostgreSQL cloud sync
+- organizations
+- multi-user permissions
+- real-time collaboration
+- remote hosted memory
+- advanced analytics
+- marketplace prompt packs
+
+
+DATABASE QUALITY RULES
+
+The database specification must ensure:
+
+1. Every AI action is traceable.
+2. Every file change is connected to a task, session, and approval.
+3. Every task status change is saved.
+4. Ignored tasks are preserved.
+5. Every tool call is logged.
+6. Every risky action has an approval decision.
+7. Every GitHub action is recorded.
+8. Every MCP call is recorded.
+9. Every connector call is recorded.
+10. Every AI response can be connected to its context.
+11. Sensitive data is protected.
+12. The user can export their data.
+13. The user can clear their data.
+14. The user can restore from backups.
+15. The app works offline by default.
+16. SQLite is the default source of truth.
+17. JSON/TOML/YAML are used for config and export, not main runtime state.
+18. PostgreSQL is optional for future cloud/team mode.
+
+
+FINAL OUTPUT REQUEST
+
+Create a complete database and data storage specification for Sync.
+
+Include:
+- database strategy
+- SQLite local-first design
+- optional PostgreSQL future mode
+- JSON/TOML/YAML config roles
+- database location
+- storage directories
+- all database entities
+- table purposes
+- key fields for each table
+- relationships between entities
+- lifecycle workflows
+- task storage behavior
+- ignored task storage behavior
+- history storage behavior
+- AI session storage behavior
+- message storage behavior
+- context tracking
+- agent run storage
+- tool call storage
+- permission decision storage
+- file change and diff storage
+- snapshot storage
+- Git and GitHub storage
+- MCP storage
+- connector storage
+- prompt library storage
+- model provider storage
+- settings storage
+- project memory storage
+- logs and diagnostics
+- secret protection
+- indexes and search
+- migrations
+- backup and restore
+- export/import
+- cleanup and retention
+- MVP database scope
+- future database features
+
+Do not write code.
+Do not create UI.
+Do not choose new technologies beyond the provided stack.
+Use the selected database technologies:
+- SQL
+- SQLite
+- PostgreSQL
+- JSON
+- TOML
+- YAML
+
+The output should be precise enough that a developer or AI coding agent can later convert it into an implementation plan.

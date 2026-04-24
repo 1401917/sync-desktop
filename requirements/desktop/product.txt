@@ -1,0 +1,1005 @@
+You are helping define the product behavior, feature set, user workflows, and functional specification for a desktop AI coding workspace named Sync.
+
+This is NOT a visual design task.
+
+Do not focus on colors, UI styling, typography, animations, or visual design.
+Do not write code.
+Do not choose frameworks.
+Do not generate implementation files.
+Do not describe low-level programming architecture unless it is necessary to explain product behavior.
+
+Focus only on:
+- what the app does
+- what features it contains
+- how the user interacts with it
+- how the AI assistant behaves
+- how tasks work
+- how history works
+- how permissions work
+- what computer access the app should have
+- GitHub repository abilities
+- MCP support
+- connectors
+- local project workflow
+- file editing workflow
+- review and approval workflow
+- safety and control rules
+- product-level behavior
+
+Product name:
+Sync
+
+Product type:
+Sync is a desktop AI coding workspace for Windows. It helps the user build, plan, review, edit, organize, and manage software projects with an AI assistant. The app should feel like a powerful AI development control center, not just a basic chat app.
+
+Core idea:
+The user opens Sync, chooses or creates a project, gives the AI assistant a task, and Sync turns that request into a structured workflow with visible tasks, project context, file access, optional GitHub actions, optional connectors, and controlled permissions.
+
+The AI should not feel like a simple chatbot.
+It should feel like a project operator, planner, coder, reviewer, and workspace assistant.
+
+Main product goals:
+1. Help the user build software faster.
+2. Help the user manage projects with AI.
+3. Let the AI inspect local files with permission.
+4. Let the AI propose changes before applying them.
+5. Let the user approve, reject, or ignore specific tasks.
+6. Keep a complete history of sessions, actions, decisions, and file changes.
+7. Support GitHub workflows such as repository creation, commits, branches, issues, and pull requests.
+8. Support MCP servers and external connectors.
+9. Make all AI actions transparent and reviewable.
+10. Keep the user in control at all times.
+
+
+APP STRUCTURE
+
+Sync should contain these main areas:
+
+1. Home / Start
+2. Project Workspace
+3. AI Session / Chat
+4. Tasks Panel
+5. File Explorer
+6. Diff Preview
+7. Agents
+8. Prompts Library
+9. History
+10. Connectors
+11. MCP Servers
+12. GitHub / Repositories
+13. Settings
+14. Permissions & Security
+15. API Keys / Models
+
+
+HOME / START
+
+The Home screen should let the user quickly begin working.
+
+It should include:
+- Start a new AI session
+- Open local project folder
+- Create new project
+- Continue recent project
+- Connect GitHub
+- Connect external tools
+- Open previous session
+- View recent tasks
+- View active project status
+
+Home should show:
+- Recent Projects
+- Recent Sessions
+- Pending Tasks
+- Connected Tools status
+- Recommended Next Actions
+
+Example actions:
+- "Open Project"
+- "Create New Project"
+- "Continue Session"
+- "Connect GitHub"
+- "Manage Connectors"
+
+
+PROJECT WORKSPACE
+
+The Project Workspace is the main project control center.
+
+It should show:
+- Current project name
+- Project path
+- Main language/framework if detected
+- Git status
+- Connected repository if available
+- AI session status
+- Pending changes
+- Recent tasks
+- Files selected as context
+- Project health summary
+- Recommended actions
+
+The AI should be able to analyze the project and provide:
+- project structure summary
+- detected technologies
+- potential issues
+- missing files
+- suggested improvements
+- next development steps
+- build/run instructions if detected
+
+Project Workspace should support:
+- Open folder
+- Scan project
+- Ask AI about project
+- Attach files to context
+- Generate project plan
+- Start coding task
+- Review pending changes
+- Open GitHub repository tools
+
+
+AI SESSION / CHAT
+
+The AI Session is where the user gives Sync tasks.
+
+The user can ask things like:
+- "Build this feature"
+- "Review my project"
+- "Improve the UI"
+- "Fix this bug"
+- "Create a GitHub repository"
+- "Generate a README"
+- "Connect this project to GitHub"
+- "Create tasks for this system"
+- "Analyze these files"
+- "Use MCP to check documentation"
+- "Search my connected files"
+- "Prepare a pull request"
+
+The AI should always understand the request as a project workflow, not only a chat response.
+
+For complex requests, the AI should respond with:
+1. Short understanding of the request
+2. Proposed task list
+3. Required context
+4. Required permissions
+5. Risks or important notes
+6. Next action suggestion
+
+The AI should support modes:
+- Plan Mode
+- Build Mode
+- Review Mode
+- Debug Mode
+- Design Mode
+- Refactor Mode
+- GitHub Mode
+- Research Mode
+- Connector Mode
+
+The user should be able to switch mode manually, but Sync can also suggest a mode based on the request.
+
+
+TASKS PANEL
+
+This is a major feature.
+
+After the user gives the AI a task, Sync should create a visible task checklist at the bottom or in a dedicated task panel.
+
+The tasks should represent the AI's working plan.
+
+Each task row should include:
+- checkbox/status indicator
+- task title
+- optional short explanation
+- status
+- priority
+- related file/tool if relevant
+- action buttons
+
+Task statuses:
+- Pending
+- In Progress
+- Completed
+- Skipped
+- Ignored
+- Failed
+- Waiting for Approval
+- Blocked
+
+Each task should support:
+- mark complete
+- skip task
+- ignore task
+- restore ignored task
+- edit task
+- reorder task
+- expand details
+- ask AI about this task
+- attach task to a file
+- link task to a GitHub issue
+- link task to a connector result
+
+The user should be able to draw a line through a task or mark it as ignored.
+When the user crosses out or ignores a task, the AI must treat that task as excluded from the workflow.
+
+Ignored task behavior:
+- The task remains visible but visually marked as ignored.
+- The AI should not execute it.
+- The AI should not plan around it unless the user restores it.
+- The task should appear in history as ignored.
+- The user can restore it later.
+
+Completed task behavior:
+- Completed tasks show a checkmark.
+- The AI should explain briefly what was completed.
+- If the task changed files, it should link to the diff.
+- If the task used a tool, it should link to the tool call record.
+
+Task creation behavior:
+- For every non-trivial user request, Sync should generate tasks.
+- For small questions, tasks are optional.
+- The AI should not create too many tasks for simple requests.
+- Complex requests should be broken into clear phases.
+
+Example task list for "Create GitHub repository for this project":
+1. Check current project folder
+2. Inspect Git status
+3. Ask for repository name if missing
+4. Create GitHub repository
+5. Initialize Git if needed
+6. Add remote origin
+7. Create initial commit
+8. Push to GitHub
+9. Save repository link to project history
+
+Example task list for "Improve this app UI":
+1. Review current screens
+2. Identify inconsistent layout areas
+3. Propose UI improvements
+4. Generate file changes
+5. Show diff preview
+6. Wait for approval
+7. Apply approved changes
+8. Save summary to history
+
+
+TASK PANEL LOCATION
+
+The task panel should be available in the workspace and AI session.
+
+Preferred behavior:
+- A compact task bar appears at the bottom after a task is created.
+- The user can expand it into a full task panel.
+- The task panel shows current task progress.
+- Completed tasks collapse automatically but remain visible.
+- Ignored tasks remain visible with strikethrough styling.
+- Failed tasks are shown clearly with a reason.
+
+Task panel controls:
+- "Run next"
+- "Pause"
+- "Resume"
+- "Approve all safe tasks"
+- "Reject pending actions"
+- "Clear completed"
+- "Export task summary"
+
+
+FILE ACCESS
+
+Sync may access local project files only after the user opens or selects a project folder.
+
+File access rules:
+- Sync should not access the entire computer automatically.
+- Sync should only access folders the user explicitly opens.
+- The user can add more allowed folders manually.
+- The AI can read files inside allowed folders.
+- The AI can search files inside allowed folders.
+- The AI can propose file edits.
+- The AI cannot write files unless the user approves or permissions allow it.
+- The AI cannot delete files without explicit confirmation.
+- The AI cannot modify sensitive files without confirmation.
+
+Sensitive files include:
+- .env
+- API key files
+- credential files
+- private keys
+- token files
+- deployment secrets
+- payment configuration files
+
+File operations:
+- Read file
+- Search files
+- List directory
+- Create file
+- Edit file
+- Rename file
+- Move file
+- Delete file
+- Create folder
+- Compare file versions
+- Restore previous snapshot
+
+File editing workflow:
+1. AI analyzes the request.
+2. AI selects relevant files.
+3. AI proposes changes.
+4. Sync displays diff preview.
+5. User approves selected changes.
+6. Sync applies approved changes.
+7. Sync creates file snapshot.
+8. Sync saves action to history.
+
+The user should be able to:
+- approve all changes
+- approve selected files only
+- reject all changes
+- ask AI to revise changes
+- restore previous version
+
+
+DIFF PREVIEW
+
+Before applying changes, Sync should show a diff preview.
+
+Diff preview should include:
+- changed files list
+- added lines
+- removed lines
+- modified sections
+- file risk level
+- AI explanation
+- related task
+- approve/reject controls
+
+Diff states:
+- Waiting for review
+- Approved
+- Rejected
+- Applied
+- Failed to apply
+- Reverted
+
+Diff actions:
+- Apply selected change
+- Reject selected change
+- Ask AI to revise
+- Copy patch
+- Save patch
+- Restore previous file version
+
+The AI should never silently apply meaningful file changes without traceability.
+
+
+HISTORY SYSTEM
+
+Sync should have a serious history system.
+
+History should record:
+- conversations
+- user prompts
+- AI responses
+- generated task lists
+- task status changes
+- ignored tasks
+- completed tasks
+- failed tasks
+- tool calls
+- file reads
+- file changes
+- diff previews
+- approvals
+- rejected changes
+- GitHub actions
+- connector usage
+- MCP tool usage
+- model used
+- timestamp
+- project involved
+- files involved
+
+History should be searchable and filterable.
+
+History filters:
+- Sessions
+- Tasks
+- File changes
+- GitHub actions
+- Tool calls
+- Errors
+- Prompts
+- Agents
+- Connectors
+- MCP
+
+Each history item should show:
+- title
+- type
+- time
+- project
+- agent/mode
+- summary
+- status
+- related files/tasks/tools
+
+History item actions:
+- Open session
+- Restore context
+- Reuse prompt
+- View diff
+- Revert change
+- Continue from here
+- Export summary
+
+The user should be able to continue an old session with its previous context.
+
+History should support:
+- session timeline
+- task timeline
+- file change timeline
+- GitHub timeline
+- connector timeline
+
+
+GITHUB / REPOSITORIES
+
+Sync should support GitHub integration.
+
+GitHub capabilities:
+- connect GitHub account
+- view connected user
+- create repository
+- connect local project to repository
+- initialize Git in local folder
+- view Git status
+- create branch
+- switch branch
+- stage changes
+- commit changes
+- push changes
+- pull changes
+- create pull request
+- create issue
+- link tasks to issues
+- link file changes to commits
+- open repository in browser
+- clone repository
+- import repository as project
+
+Repository creation workflow:
+1. User asks Sync to create a GitHub repository.
+2. Sync checks if GitHub is connected.
+3. If not connected, Sync asks user to connect GitHub.
+4. Sync asks for repository name if not provided.
+5. Sync asks whether the repo should be public or private.
+6. Sync creates repository only after user approval.
+7. Sync initializes Git locally if needed.
+8. Sync adds remote origin.
+9. Sync creates commit if user approves.
+10. Sync pushes to GitHub if user approves.
+11. Sync saves repository link in project history.
+
+GitHub safety rules:
+- Never create public repositories without clear user approval.
+- Never push secrets.
+- Warn if .env or credential files are staged.
+- Show commit summary before committing.
+- Show push target before pushing.
+- Ask before force push.
+- Ask before deleting branches.
+- Ask before making repository public.
+- Ask before deleting repository.
+
+
+MCP SUPPORT
+
+Sync should support MCP servers.
+
+MCP purpose:
+MCP allows Sync to connect to external tools and structured capabilities through standardized tool servers.
+
+MCP screen should allow:
+- add MCP server
+- enable/disable MCP server
+- view MCP tools
+- test connection
+- view server status
+- view permissions requested by each server
+- see last used time
+- remove server
+
+MCP server fields:
+- server name
+- server type
+- command or endpoint
+- status
+- available tools
+- permissions
+- last used
+- error logs
+
+MCP usage rules:
+- AI can request to use an MCP tool.
+- User can approve MCP usage globally or per action.
+- MCP calls should be logged in history.
+- MCP results should be attachable as context.
+- Failed MCP calls should show a clear error.
+- MCP server access should be disableable at any time.
+
+MCP examples:
+- documentation lookup server
+- file search server
+- browser automation server
+- database inspection server
+- GitHub server
+- project management server
+
+
+CONNECTORS
+
+Sync should support connectors to external services.
+
+Connector examples:
+- GitHub
+- Google Drive
+- Gmail
+- Notion
+- Discord
+- Slack
+- Trello
+- Jira
+- Linear
+- Figma
+- Supabase
+- Firebase
+- Vercel
+- Netlify
+- OpenAI
+- OpenRouter
+- Anthropic
+- Gemini
+- Ollama
+
+Connector screen should show:
+- connector name
+- connection status
+- account connected
+- permissions
+- last sync
+- available actions
+- disconnect button
+
+Connector statuses:
+- Connected
+- Not connected
+- Error
+- Requires authentication
+- Disabled
+
+Connector behavior:
+- The AI can use connectors only if connected and allowed.
+- Connector usage should be visible.
+- The user should be able to enable or disable each connector.
+- The user should be able to decide which connectors can be used automatically and which require approval.
+- Connector outputs can be attached to AI context.
+- Every connector action is logged in history.
+
+Connector permission levels:
+- Disabled
+- Ask every time
+- Read only
+- Read and propose actions
+- Full access with confirmation
+
+No connector should perform destructive actions silently.
+
+
+AI AGENTS
+
+Sync should include specialized AI agents or modes.
+
+Agents:
+1. Planner Agent
+   Purpose: Break requests into tasks, phases, and milestones.
+
+2. Coder Agent
+   Purpose: Propose code changes and implementation steps.
+
+3. Reviewer Agent
+   Purpose: Review code, logic, architecture, and risks.
+
+4. UI Agent
+   Purpose: Improve interface structure, UX, visual consistency, and screen logic.
+
+5. Refactor Agent
+   Purpose: Improve naming, structure, modularity, and maintainability.
+
+6. Security Agent
+   Purpose: Detect unsafe operations, secrets, risky permissions, and dangerous commands.
+
+7. GitHub Agent
+   Purpose: Manage repositories, issues, pull requests, commits, and branches.
+
+8. Connector Agent
+   Purpose: Use external tools and connected services.
+
+Agent behavior:
+- The user can manually choose an agent.
+- Sync can recommend an agent based on the task.
+- Multiple agents can collaborate on a complex task.
+- Agents should generate visible task lists.
+- Agent actions should be logged.
+- Agents should not bypass permissions.
+
+
+PROMPTS LIBRARY
+
+Sync should include a prompt library.
+
+Prompt library features:
+- save prompts
+- edit prompts
+- duplicate prompts
+- categorize prompts
+- search prompts
+- favorite prompts
+- use prompt in current session
+- attach prompt to an agent
+- version prompts
+- export prompts
+- import prompts
+
+Prompt categories:
+- Planning
+- Coding
+- Code Review
+- UI/UX
+- Refactor
+- Debugging
+- GitHub
+- Documentation
+- Roblox
+- Desktop Apps
+- Security
+- Connectors
+
+Each prompt should contain:
+- title
+- description
+- category
+- tags
+- prompt content
+- version
+- last used date
+- favorite status
+
+
+PERMISSIONS & COMPUTER ACCESS
+
+Sync should have a clear permission system.
+
+Permission categories:
+1. File System
+2. Terminal / Commands
+3. Git / GitHub
+4. Connectors
+5. MCP Servers
+6. Network Access
+7. Secrets / API Keys
+8. Database
+9. Project Memory
+10. Automation
+
+Permission levels:
+- Disabled
+- Ask every time
+- Allow for this session
+- Allow for this project
+- Always allow
+
+Recommended default:
+- Read project files: allowed after user opens folder
+- Write files: ask every time
+- Delete files: ask every time
+- Run terminal commands: ask every time
+- GitHub repository creation: ask every time
+- Git commit: ask every time
+- Git push: ask every time
+- Connector read: ask every time by default
+- Connector write: ask every time
+- MCP tools: ask every time by default
+- Secrets access: always protected
+
+Permission prompts should clearly show:
+- what action will happen
+- why the AI wants to do it
+- target file/tool/service
+- risk level
+- allow once
+- allow for session
+- deny
+
+The user should be able to view and change permissions in Settings.
+
+
+COMMAND EXECUTION
+
+Sync may support running terminal commands.
+
+Examples:
+- npm install
+- npm run dev
+- npm run build
+- cargo build
+- git status
+- git add
+- git commit
+- git push
+- python script.py
+
+Command execution rules:
+- Show the exact command before running.
+- Explain why it is needed.
+- Show working directory.
+- Show risk level.
+- Ask for approval unless user has allowed this action.
+- Never run destructive commands silently.
+- Never run suspicious commands without strong warning.
+- Show command output.
+- Save command output to history.
+
+Dangerous commands should require explicit confirmation:
+- deleting files
+- formatting disks
+- removing directories
+- force pushing
+- changing security settings
+- exposing secrets
+- running unknown downloaded scripts
+
+
+SETTINGS
+
+Settings should include:
+
+General:
+- startup behavior
+- default project
+- default mode
+- language
+- recent project behavior
+
+Appearance:
+- theme
+- accent color
+- density
+- window behavior
+
+AI Behavior:
+- default agent
+- default mode
+- response style
+- task generation behavior
+- ask before action
+- automatic planning
+- auto-summarize sessions
+
+Models:
+- AI provider
+- default model
+- reasoning model
+- fast model
+- local model
+- max context
+- temperature
+- streaming on/off
+
+Permissions:
+- file access
+- write access
+- terminal access
+- GitHub access
+- connector access
+- MCP access
+- secrets protection
+
+Storage:
+- history storage
+- cache
+- file snapshots
+- database location
+- clear history
+- export data
+
+Connectors:
+- manage connected services
+- connector permissions
+- sync status
+
+MCP:
+- manage MCP servers
+- server tools
+- logs
+- permissions
+
+Advanced:
+- developer mode
+- logs
+- diagnostics
+- reset app
+- export debug bundle
+
+
+API KEYS / MODELS
+
+Sync should support multiple AI providers.
+
+Provider examples:
+- OpenAI
+- OpenRouter
+- Anthropic
+- Google Gemini
+- Ollama
+
+Model behavior:
+- User can set default model.
+- User can set separate models for fast tasks, reasoning tasks, coding tasks, and local fallback.
+- User can test a model connection.
+- User can view current provider status.
+- User can disable providers.
+
+API key rules:
+- Keys should be stored locally.
+- Keys should be hidden by default.
+- User can update or remove keys.
+- Sync should never show full API keys after saving.
+- AI should not read API keys as normal project context.
+- API key usage should be separated from project files.
+
+
+PROJECT MEMORY
+
+Sync should have local project memory.
+
+Project memory stores:
+- project summary
+- selected technologies
+- user preferences
+- important decisions
+- active goals
+- known issues
+- previous AI recommendations
+- ignored tasks
+- completed milestones
+- connected repository
+- connector links
+
+Memory rules:
+- Memory should be visible and editable by the user.
+- User can clear memory.
+- User can disable memory.
+- AI should use memory to stay consistent.
+- AI should not treat old memory as absolute truth if project files changed.
+
+
+WORKFLOW EXAMPLES
+
+Example workflow 1: Build feature
+User says:
+"Add a settings screen for AI models."
+
+Sync should:
+1. Understand request.
+2. Create task checklist.
+3. Inspect project files.
+4. Identify relevant UI structure.
+5. Propose implementation plan.
+6. Generate file changes.
+7. Show diff preview.
+8. Wait for approval.
+9. Apply approved changes.
+10. Save summary to history.
+
+Example workflow 2: Create GitHub repository
+User says:
+"Create a GitHub repository for this project."
+
+Sync should:
+1. Check GitHub connection.
+2. Check project Git status.
+3. Ask for repo name if missing.
+4. Ask public/private.
+5. Show exact actions.
+6. Ask for approval.
+7. Create repo.
+8. Connect local project.
+9. Commit if approved.
+10. Push if approved.
+11. Save repo link.
+
+Example workflow 3: Use MCP
+User says:
+"Use MCP to check the latest documentation."
+
+Sync should:
+1. Check available MCP servers.
+2. Find relevant MCP tool.
+3. Ask approval if required.
+4. Run tool.
+5. Attach result to context.
+6. Summarize result.
+7. Save MCP call to history.
+
+Example workflow 4: Ignore task
+AI creates tasks:
+1. Analyze files
+2. Create database schema
+3. Add GitHub workflow
+4. Generate README
+
+User crosses out "Add GitHub workflow."
+
+Sync should:
+- Mark it as Ignored.
+- Keep it visible with strikethrough.
+- AI must not execute it.
+- Future plans should exclude it.
+- History should record that the user ignored it.
+- User can restore it later.
+
+
+IMPORTANT PRODUCT RULES
+
+1. Sync should always be transparent.
+2. Sync should not hide actions.
+3. Sync should not silently modify files.
+4. Sync should not run commands without approval by default.
+5. Sync should not use connectors without permission.
+6. Sync should not push to GitHub without approval.
+7. Sync should not expose secrets.
+8. Sync should show tasks for complex requests.
+9. Sync should let the user ignore, skip, edit, or approve tasks.
+10. Sync should keep detailed history.
+11. Sync should make the user feel in control.
+12. Sync should behave like a professional AI development workspace.
+
+
+FINAL OUTPUT REQUEST
+
+Create a complete product behavior and feature specification for Sync.
+
+Include:
+- core product definition
+- screen list
+- feature list
+- AI behavior
+- task system behavior
+- task statuses
+- ignored task behavior
+- history system
+- local file access rules
+- file editing workflow
+- diff workflow
+- GitHub repository workflow
+- MCP support
+- connector support
+- agents
+- prompts library
+- permissions model
+- command execution rules
+- settings
+- API keys and models
+- project memory
+- example workflows
+- safety rules
+- MVP recommendation
+- future version features
+
+Do not write code.
+Do not focus on visual styling.
+Do not create implementation files.
+Focus on what the app should do and how it should behave.

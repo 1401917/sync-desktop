@@ -1,0 +1,51 @@
+Core App / Desktop
+- TypeScript
+- Rust
+
+UI / Design
+- TSX
+- CSS
+- Tailwind CSS
+
+AI / Agents
+- TypeScript
+- Python
+
+Database / Data Store
+- SQL
+- SQLite
+- PostgreSQL
+
+Local Storage / Config
+- JSON
+- TOML
+- YAML
+
+API / Backend Communication
+- TypeScript
+- Rust
+- Python
+
+Automation / Windows Tools
+- PowerShell
+
+Build / Package / DevOps
+- JavaScript
+- TypeScript
+- Rust
+- Bash
+- PowerShell
+
+Recommended Final Stack
+- TypeScript
+- TSX
+- Rust
+- Python
+- SQL
+- SQLite
+- JSON
+- TOML
+- YAML
+- CSS
+- Tailwind CSS
+- PowerShell

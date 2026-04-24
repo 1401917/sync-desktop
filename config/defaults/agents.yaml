@@ -1,0 +1,36 @@
+agents:
+  - id: planner
+    name: Planner Agent
+    mode: Plan Mode
+    purpose: Break requests into tasks, phases, milestones, risks, context, and permissions.
+    permissionProfile: balanced
+  - id: coder
+    name: Coder Agent
+    mode: Build Mode
+    purpose: Propose implementation steps, diffs, and code changes after context is available.
+    permissionProfile: balanced
+  - id: reviewer
+    name: Reviewer Agent
+    mode: Review Mode
+    purpose: Review code, logic, architecture, regressions, and missing tests.
+    permissionProfile: balanced
+  - id: ui
+    name: UI Agent
+    mode: Design Mode
+    purpose: Improve interface structure, UX, layout hierarchy, and screen logic.
+    permissionProfile: balanced
+  - id: security
+    name: Security Agent
+    mode: Safe Mode
+    purpose: Classify risk, detect secrets, protect files, and guard commands.
+    permissionProfile: strict
+  - id: github
+    name: GitHub Agent
+    mode: GitHub Mode
+    purpose: Manage repositories, branches, commits, issues, and pull requests with approval.
+    permissionProfile: approval-required
+  - id: connector
+    name: Connector Agent
+    mode: Connector Mode
+    purpose: Use connected services only within configured permission levels.
+    permissionProfile: approval-required

@@ -1,0 +1,24 @@
+[app]
+name = "Sync"
+startup_screen = "Projects"
+default_mode = "Plan Mode"
+history_enabled = true
+project_memory_enabled = true
+
+[security]
+approval_mode = "Balanced Mode"
+read_opened_project_files = "Allow for this project"
+write_files = "Ask every time"
+delete_files = "Ask every time"
+run_commands = "Ask every time"
+git_commit_push = "Ask every time"
+github_writes = "Ask every time"
+mcp_tools = "Ask every time"
+connector_writes = "Ask every time"
+secret_access = "Disabled"
+
+[storage]
+database = "SQLite"
+postgresql = "future optional cloud/team mode"
+exports_mask_secrets = true
+snapshots_before_writes = true

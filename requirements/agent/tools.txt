@@ -1,0 +1,1241 @@
+You are defining the AI tool system for a desktop AI coding workspace named Sync.
+
+This is NOT a coding task.
+Do not write code.
+Do not choose frameworks.
+Do not generate implementation files.
+Do not design UI styling.
+Do not focus on colors or visual layout.
+
+Focus only on:
+- what tools the AI can access
+- what each tool can do
+- what permissions are required
+- what actions need user approval
+- how tools are grouped
+- how MCP servers work
+- how GitHub and Git tools work
+- how local computer access works
+- how command execution works
+- how connector tools work
+- how tool calls are logged
+- how the user stays in control
+- what tools are allowed, blocked, risky, or restricted
+
+Product name:
+Sync
+
+Product type:
+Sync is a desktop AI coding workspace for Windows. It allows an AI assistant to help the user plan, build, edit, debug, refactor, review, and manage software projects. The AI should have access to strong tools, but every sensitive action must be visible, controlled, logged, and permission-based.
+
+Main objective:
+Create a complete AI tools specification for Sync. The AI should be powerful enough to operate like a professional coding agent, but safe enough that it never secretly modifies files, runs dangerous commands, pushes code, exposes secrets, or performs external actions without the correct permission.
+
+The AI tool system should feel like a controlled operating layer between the AI and the user’s computer, GitHub, projects, files, commands, connectors, and MCP servers.
+
+
+CORE TOOL PRINCIPLES
+
+1. The AI must be powerful but controlled.
+2. The AI can inspect project context after the user opens a project.
+3. The AI can propose actions before executing them.
+4. The AI must request approval for risky or external actions.
+5. The AI must show exactly what it wants to do.
+6. The AI must explain why each tool is needed.
+7. The AI must show target files, commands, repositories, connectors, or MCP tools before using them.
+8. The AI must log every tool call.
+9. The AI must never silently access secrets.
+10. The AI must never silently delete files.
+11. The AI must never silently run commands.
+12. The AI must never silently push to GitHub.
+13. The user can pause, deny, ignore, or modify tool actions.
+14. The user can set tool permission levels globally, per project, per session, or per action.
+
+
+TOOL PERMISSION LEVELS
+
+Every tool should support permission levels.
+
+Permission levels:
+- Disabled
+- Ask every time
+- Allow once
+- Allow for this session
+- Allow for this project
+- Always allow
+
+Default permission model:
+- Reading files inside opened project: Allow for project
+- Searching files inside opened project: Allow for project
+- Writing files: Ask every time
+- Creating files: Ask every time
+- Deleting files: Ask every time
+- Moving or renaming files: Ask every time
+- Reading sensitive files: Ask every time
+- Running terminal commands: Ask every time
+- Installing packages: Ask every time
+- Git status/log/diff: Allow for project
+- Git add/commit/push: Ask every time
+- Creating GitHub repository: Ask every time
+- Creating GitHub issues: Ask every time
+- Creating pull requests: Ask every time
+- Reading GitHub repository metadata: Ask every time unless connected and allowed
+- Using connectors: Ask every time by default
+- Using MCP tools: Ask every time by default
+- Network requests: Ask every time unless provider is explicitly configured
+- Reading API keys: Disabled for AI context
+- Modifying app settings: Ask every time
+- Modifying permissions: Ask every time
+
+
+TOOL RISK LEVELS
+
+Each tool call should be classified.
+
+Risk levels:
+1. Safe
+2. Low
+3. Medium
+4. High
+5. Critical
+
+Safe examples:
+- list project files
+- read non-sensitive project files
+- search project files
+- inspect package metadata
+- view Git status
+- summarize project structure
+
+Low examples:
+- create a draft task list
+- create a proposed file change
+- generate README draft
+- inspect repository metadata
+- check local dependency list
+
+Medium examples:
+- create a new file
+- edit a file after approval
+- run npm install
+- run build command
+- create GitHub issue
+- create branch
+- stage files
+
+High examples:
+- delete file
+- rename/move multiple files
+- modify .env
+- commit changes
+- push to GitHub
+- create public repository
+- run unknown shell command
+- use external connector with write access
+
+Critical examples:
+- delete project folder
+- force push
+- delete GitHub repository
+- make private repository public
+- expose secrets
+- run destructive system command
+- execute downloaded script
+- modify Windows security settings
+
+Critical actions should require explicit typed confirmation, not just a normal approval click.
+
+
+TOOL CALL DISPLAY
+
+Before using a tool, Sync should show a tool approval card when approval is required.
+
+The approval card should show:
+- Tool name
+- Action summary
+- Exact target
+- Why the AI wants to use it
+- Risk level
+- Required permission
+- Expected output
+- Files affected
+- External services affected
+- Buttons:
+  - Allow once
+  - Allow for session
+  - Deny
+  - Modify request
+  - Cancel workflow
+
+For command execution, show:
+- exact command
+- working directory
+- environment scope
+- expected result
+- risk level
+- timeout
+- whether it can modify files
+- whether it can access network
+
+For GitHub actions, show:
+- account
+- repository
+- branch
+- action
+- visibility if creating repo
+- commit message if committing
+- files included if pushing
+- risk level
+
+
+TOOL LOGGING
+
+Every tool call must be logged.
+
+Tool history should include:
+- tool name
+- tool category
+- exact input
+- exact target
+- result
+- status
+- timestamp
+- duration
+- agent/mode that called it
+- project
+- user approval decision
+- risk level
+- files affected
+- external service affected
+- error output if failed
+
+Tool statuses:
+- Requested
+- Approved
+- Denied
+- Running
+- Completed
+- Failed
+- Cancelled
+- Skipped
+- Blocked by policy
+
+
+MAIN AI TOOL CATEGORIES
+
+Sync should define tools in these categories:
+
+1. Project Tools
+2. File System Tools
+3. Code Intelligence Tools
+4. Diff & Patch Tools
+5. Terminal / Process Tools
+6. Git Tools
+7. GitHub Tools
+8. Repository Management Tools
+9. MCP Server Tools
+10. Connector Tools
+11. Web / Research Tools
+12. Package Manager Tools
+13. Database Tools
+14. Local Memory Tools
+15. Prompt & Agent Tools
+16. Task Management Tools
+17. App Settings Tools
+18. Security & Secrets Tools
+19. Diagnostics Tools
+20. Export / Import Tools
+
+
+1. PROJECT TOOLS
+
+Purpose:
+Allow the AI to understand and manage opened projects.
+
+Tools:
+- open_project_folder
+- close_project
+- scan_project_structure
+- detect_project_type
+- detect_languages
+- detect_frameworks
+- detect_package_managers
+- detect_build_scripts
+- detect_test_scripts
+- summarize_project
+- generate_project_map
+- find_entry_points
+- find_config_files
+- find_docs
+- find_todos
+- find_large_files
+- find_unused_files
+- inspect_workspace_settings
+- create_project_plan
+- update_project_metadata
+
+Allowed behavior:
+- AI can scan only opened/allowed folders.
+- AI can summarize project structure.
+- AI can detect tools and languages.
+- AI can recommend next actions.
+
+Restricted behavior:
+- AI cannot scan unrelated folders without user selecting them.
+- AI cannot index the entire computer by default.
+- AI cannot upload project content to external services unless needed for selected AI provider and allowed by user.
+
+
+2. FILE SYSTEM TOOLS
+
+Purpose:
+Allow the AI to inspect and modify local project files with control.
+
+Read tools:
+- list_directory
+- read_file
+- read_multiple_files
+- search_files
+- search_text_in_files
+- get_file_metadata
+- compare_files
+- read_recent_files
+- read_project_tree
+- inspect_file_encoding
+
+Write tools:
+- propose_file_change
+- create_file
+- update_file
+- append_to_file
+- rename_file
+- move_file
+- create_folder
+- delete_file
+- delete_folder
+- restore_file_snapshot
+- format_file
+- apply_patch
+
+Sensitive file handling:
+Sensitive files include:
+- .env
+- .env.local
+- .env.production
+- secrets.json
+- credentials.json
+- private keys
+- SSH keys
+- API token files
+- config files containing tokens
+- payment provider configs
+- database credentials
+- cloud credentials
+
+Rules:
+- Reading sensitive files requires approval.
+- Sensitive values should be masked by default.
+- Sensitive content should not be inserted into normal AI context.
+- Writing sensitive files requires explicit approval.
+- Deleting sensitive files requires explicit confirmation.
+- The AI should warn before staging or pushing sensitive files.
+
+File write workflow:
+1. AI proposes changes.
+2. Sync creates a diff.
+3. User reviews diff.
+4. User approves selected changes.
+5. Sync creates a snapshot.
+6. Sync applies change.
+7. Sync logs action.
+8. User can revert.
+
+Deletion workflow:
+1. AI explains why deletion is needed.
+2. Sync shows exact file/folder path.
+3. Sync shows impact.
+4. User explicitly confirms.
+5. Snapshot or backup is created if possible.
+6. Delete action is logged.
+
+
+3. CODE INTELLIGENCE TOOLS
+
+Purpose:
+Allow the AI to understand code without blindly editing.
+
+Tools:
+- analyze_file
+- analyze_project_architecture
+- find_symbol
+- find_references
+- find_imports
+- find_exports
+- inspect_dependency_graph
+- inspect_routes
+- inspect_components
+- inspect_api_endpoints
+- inspect_database_usage
+- inspect_types
+- detect_dead_code
+- detect_duplicate_code
+- detect_complex_functions
+- detect_security_smells
+- detect_performance_issues
+- detect_memory_leak_risks
+- detect_naming_inconsistency
+- generate_code_review
+- generate_refactor_plan
+- generate_test_plan
+- generate_documentation_plan
+
+Behavior:
+- These tools should mostly be read-only.
+- Results should be attachable to AI context.
+- Findings should be linked to files and line ranges when possible.
+- The AI should not edit automatically from analysis alone.
+
+
+4. DIFF & PATCH TOOLS
+
+Purpose:
+Control how AI-generated code changes are proposed, reviewed, applied, and reverted.
+
+Tools:
+- create_diff_preview
+- create_patch
+- validate_patch
+- apply_patch
+- apply_selected_changes
+- reject_patch
+- revise_patch
+- split_patch_by_file
+- split_patch_by_task
+- snapshot_before_patch
+- restore_snapshot
+- compare_snapshot
+- show_change_summary
+- estimate_change_risk
+
+Diff rules:
+- Meaningful changes must go through diff preview.
+- The user can approve/reject per file.
+- The user can approve/reject per hunk.
+- The user can ask AI to revise only rejected parts.
+- The AI must summarize what changed.
+- Applied patches must be logged.
+- Revert should be available when possible.
+
+
+5. TERMINAL / PROCESS TOOLS
+
+Purpose:
+Allow the AI to run local commands with user approval.
+
+Tools:
+- run_command
+- run_build
+- run_test
+- run_dev_server
+- stop_process
+- list_running_processes
+- read_process_output
+- run_script
+- check_command_exists
+- check_node_version
+- check_python_version
+- check_rust_version
+- check_git_version
+- inspect_environment
+- install_dependency
+- uninstall_dependency
+
+Command categories:
+Safe read-only commands:
+- git status
+- git log
+- npm -v
+- node -v
+- python --version
+- cargo --version
+- npm run list if available
+- dir / ls equivalent
+- type/cat specific allowed files
+
+Medium commands:
+- npm install
+- pip install
+- cargo build
+- npm run build
+- npm test
+- cargo test
+- python script.py if local and reviewed
+
+High-risk commands:
+- rm / del
+- rmdir
+- format
+- curl | bash
+- Invoke-WebRequest piped to execution
+- force push
+- chmod/chown broad changes
+- registry edits
+- firewall changes
+- security settings changes
+- running unknown downloaded executable
+
+Command execution rules:
+- Always show exact command before running.
+- Always show working directory.
+- Ask for approval by default.
+- Show output live.
+- Allow user to stop command.
+- Save output to history.
+- Detect dangerous commands.
+- Block or require explicit confirmation for destructive commands.
+- Do not run hidden commands.
+- Do not auto-install packages without approval.
+- Do not run scripts downloaded from the internet without strong warning.
+
+
+6. GIT TOOLS
+
+Purpose:
+Allow the AI to manage local Git workflows.
+
+Read tools:
+- git_status
+- git_log
+- git_diff
+- git_branch_list
+- git_remote_list
+- git_show
+- git_blame
+- git_stash_list
+- git_config_read
+
+Write tools:
+- git_init
+- git_add
+- git_restore
+- git_checkout
+- git_create_branch
+- git_switch_branch
+- git_commit
+- git_pull
+- git_push
+- git_merge
+- git_rebase
+- git_stash
+- git_stash_pop
+- git_tag
+- git_remote_add
+- git_remote_remove
+
+Git safety rules:
+- git status and diff can be low risk.
+- git add requires approval if staging many files.
+- git commit requires approval and shows commit message.
+- git push requires approval and shows remote/branch.
+- force push requires explicit typed confirmation.
+- branch deletion requires confirmation.
+- rebase requires confirmation.
+- merge requires confirmation.
+- remote changes require confirmation.
+- Sync must warn if secrets are staged.
+- Sync should show changed file list before commit.
+- Sync should allow editing commit message before committing.
+
+
+7. GITHUB TOOLS
+
+Purpose:
+Allow the AI to interact with GitHub repositories.
+
+Account tools:
+- github_connect_account
+- github_disconnect_account
+- github_get_authenticated_user
+- github_list_repositories
+- github_get_repository
+- github_check_permissions
+
+Repository tools:
+- github_create_repository
+- github_import_repository
+- github_clone_repository
+- github_connect_local_project
+- github_update_repository_settings
+- github_archive_repository
+- github_delete_repository
+
+Branch tools:
+- github_list_branches
+- github_create_branch
+- github_delete_branch
+- github_compare_branches
+
+Issue tools:
+- github_list_issues
+- github_create_issue
+- github_update_issue
+- github_close_issue
+- github_link_task_to_issue
+
+Pull request tools:
+- github_list_pull_requests
+- github_create_pull_request
+- github_update_pull_request
+- github_comment_on_pull_request
+- github_merge_pull_request
+
+Release tools:
+- github_create_release
+- github_upload_release_asset
+- github_list_releases
+
+Workflow tools:
+- github_list_actions
+- github_run_workflow
+- github_read_workflow_logs
+
+GitHub safety rules:
+- Creating repositories requires approval.
+- Public repository creation requires clear approval.
+- Deleting repository requires explicit typed confirmation.
+- Making a private repo public requires explicit typed confirmation.
+- Pushing code requires approval.
+- Creating PR requires approval.
+- Merging PR requires approval.
+- Running GitHub Actions requires approval.
+- Updating repository settings requires approval.
+- The AI must never expose tokens.
+- The AI must warn about secrets before push or public repo creation.
+
+GitHub repository creation flow:
+1. Check GitHub connection.
+2. Ask for repository name if missing.
+3. Ask public/private if missing.
+4. Show repository owner/account.
+5. Show project folder to connect.
+6. Ask approval.
+7. Create repository.
+8. Initialize Git locally if needed.
+9. Add remote.
+10. Offer initial commit.
+11. Ask before pushing.
+12. Save repository link to project memory and history.
+
+
+8. REPOSITORY MANAGEMENT TOOLS
+
+Purpose:
+Manage repository-level project workflows beyond raw GitHub actions.
+
+Tools:
+- create_repo_from_project
+- connect_project_to_repo
+- sync_project_with_repo
+- generate_repo_readme
+- generate_gitignore
+- generate_license
+- generate_contributing
+- generate_issue_templates
+- generate_pr_template
+- generate_changelog
+- analyze_repo_health
+- detect_missing_repo_files
+- prepare_initial_commit
+- prepare_release_notes
+
+Behavior:
+- The AI should suggest repository best practices.
+- The user must approve generated files.
+- The user must approve commits and pushes.
+
+
+9. MCP SERVER TOOLS
+
+Purpose:
+Allow Sync to connect to MCP servers and expose MCP tools to the AI.
+
+MCP management tools:
+- mcp_add_server
+- mcp_remove_server
+- mcp_enable_server
+- mcp_disable_server
+- mcp_test_connection
+- mcp_list_servers
+- mcp_list_tools
+- mcp_get_server_status
+- mcp_get_server_permissions
+- mcp_view_logs
+
+MCP execution tools:
+- mcp_call_tool
+- mcp_attach_result_to_context
+- mcp_save_result
+- mcp_retry_call
+- mcp_cancel_call
+
+MCP server fields:
+- name
+- type
+- command or endpoint
+- transport type
+- status
+- available tools
+- permissions
+- last used
+- logs
+- error state
+- trusted/untrusted status
+
+MCP tool approval:
+Before calling an MCP tool, show:
+- MCP server name
+- tool name
+- input summary
+- expected output
+- permissions needed
+- external access involved
+- risk level
+- allow/deny buttons
+
+MCP rules:
+- MCP tools are disabled by default until configured.
+- Each MCP server can be enabled/disabled.
+- Each MCP tool can have permission rules.
+- MCP calls should be logged.
+- MCP results should be attachable to context.
+- MCP failures should show readable errors.
+- Untrusted MCP servers require approval every time.
+- MCP servers should not access secrets unless explicitly allowed.
+- MCP servers should not perform destructive actions without approval.
+
+MCP examples:
+- documentation lookup MCP
+- GitHub MCP
+- browser MCP
+- database MCP
+- filesystem MCP
+- cloud deployment MCP
+- project management MCP
+- local search MCP
+- vector database MCP
+
+
+10. CONNECTOR TOOLS
+
+Purpose:
+Allow Sync to integrate with external services.
+
+Connector management tools:
+- connector_connect
+- connector_disconnect
+- connector_enable
+- connector_disable
+- connector_test_connection
+- connector_view_permissions
+- connector_update_permissions
+- connector_sync
+- connector_get_status
+
+Supported connectors:
+- GitHub
+- Google Drive
+- Gmail
+- Notion
+- Discord
+- Slack
+- Trello
+- Jira
+- Linear
+- Figma
+- Supabase
+- Firebase
+- Vercel
+- Netlify
+- OpenAI
+- OpenRouter
+- Anthropic
+- Google Gemini
+- Ollama
+
+Connector permission levels:
+- Disabled
+- Ask every time
+- Read only
+- Read and propose
+- Write with confirmation
+- Full access with confirmation
+
+Connector rules:
+- Read access may be allowed per connector.
+- Write actions require confirmation.
+- Destructive actions require explicit confirmation.
+- Connector output should be attachable to session context.
+- Every connector call must be logged.
+- AI should explain why it needs the connector.
+- User can disable connector at any time.
+
+Example connector capabilities:
+GitHub:
+- read repositories
+- create repo
+- create issue
+- create PR
+
+Google Drive:
+- search documents
+- read selected documents
+- attach docs as context
+
+Gmail:
+- search selected mail
+- draft email
+- never send email without approval
+
+Notion:
+- read pages
+- create pages with approval
+- update pages with approval
+
+Discord:
+- read selected server/channel if connected
+- draft messages
+- send only with approval
+
+Figma:
+- read design metadata if available
+- attach selected design context
+
+Supabase/Firebase:
+- inspect project configuration
+- read schema
+- propose database changes
+- never modify production without approval
+
+Vercel/Netlify:
+- read deployments
+- trigger deployment with approval
+- view logs
+
+
+11. WEB / RESEARCH TOOLS
+
+Purpose:
+Allow the AI to research documentation, errors, packages, and technical references.
+
+Tools:
+- web_search
+- open_web_page
+- read_documentation
+- search_error_message
+- search_package_docs
+- search_github_repos
+- compare_libraries
+- check_latest_version
+- fetch_release_notes
+- attach_web_result_to_context
+
+Rules:
+- Web access should be transparent.
+- AI should cite or save sources in history.
+- AI should prefer official docs for technical claims.
+- AI should not download or execute code automatically.
+- AI should not browse unrelated personal data.
+- Research results can be attached to the current session.
+
+
+12. PACKAGE MANAGER TOOLS
+
+Purpose:
+Allow the AI to inspect and manage dependencies.
+
+Tools:
+- inspect_package_json
+- inspect_lockfile
+- inspect_dependencies
+- check_outdated_packages
+- check_vulnerabilities
+- install_package
+- uninstall_package
+- update_package
+- run_package_script
+- inspect_npm_scripts
+- inspect_pip_requirements
+- inspect_cargo_toml
+- inspect_pyproject
+- inspect_pnpm_workspace
+- inspect_yarn_workspace
+
+Supported package managers:
+- npm
+- pnpm
+- yarn
+- bun
+- pip
+- poetry
+- cargo
+
+Rules:
+- Inspecting dependencies is low risk.
+- Installing/updating/removing packages requires approval.
+- AI must explain why a dependency is needed.
+- AI must warn about large or risky dependencies.
+- AI must save dependency changes to history.
+- AI should show changed lockfiles in diff.
+
+
+13. DATABASE TOOLS
+
+Purpose:
+Allow the AI to inspect development databases or local app databases with permission.
+
+Tools:
+- database_connect
+- database_disconnect
+- database_test_connection
+- database_list_tables
+- database_describe_table
+- database_read_rows
+- database_run_query
+- database_export_schema
+- database_generate_migration
+- database_apply_migration
+- database_backup
+- database_restore_backup
+
+Supported:
+- SQLite
+- PostgreSQL
+- Supabase Postgres
+- local development databases
+
+Rules:
+- Reading schema requires approval unless configured.
+- Reading data requires approval.
+- Writing database changes requires approval.
+- Applying migrations requires explicit approval.
+- Production database access should be protected.
+- AI should never expose credentials.
+- AI should never drop tables without explicit typed confirmation.
+- AI should create backup before risky changes when possible.
+
+
+14. LOCAL MEMORY TOOLS
+
+Purpose:
+Allow Sync to maintain useful local memory for projects and sessions.
+
+Tools:
+- memory_read_project_summary
+- memory_update_project_summary
+- memory_add_decision
+- memory_add_preference
+- memory_add_known_issue
+- memory_add_ignored_task
+- memory_add_completed_task
+- memory_clear_project_memory
+- memory_export
+- memory_import
+
+Memory rules:
+- Memory is visible to the user.
+- Memory can be edited by the user.
+- Memory can be disabled.
+- AI should not store secrets in memory.
+- Ignored tasks should be stored so the AI does not repeat them.
+- Old memory should be marked as possibly outdated if files changed significantly.
+
+
+15. PROMPT & AGENT TOOLS
+
+Purpose:
+Allow the AI to use internal prompt and agent systems.
+
+Prompt tools:
+- list_prompts
+- search_prompts
+- use_prompt
+- create_prompt
+- edit_prompt
+- duplicate_prompt
+- delete_prompt
+- favorite_prompt
+- version_prompt
+- export_prompt
+- import_prompt
+
+Agent tools:
+- list_agents
+- select_agent
+- run_agent
+- configure_agent
+- enable_agent
+- disable_agent
+- view_agent_history
+- create_agent_workflow
+
+Rules:
+- AI can recommend prompts.
+- AI can recommend agents.
+- Creating/editing/deleting prompt templates should require user approval.
+- Agent actions must still obey normal permissions.
+- No agent can bypass tool restrictions.
+
+
+16. TASK MANAGEMENT TOOLS
+
+Purpose:
+Allow AI to create and manage visible task plans.
+
+Tools:
+- create_task_list
+- add_task
+- edit_task
+- delete_task
+- reorder_task
+- mark_task_in_progress
+- mark_task_completed
+- mark_task_failed
+- mark_task_blocked
+- mark_task_skipped
+- mark_task_ignored
+- restore_ignored_task
+- link_task_to_file
+- link_task_to_diff
+- link_task_to_tool_call
+- link_task_to_github_issue
+- export_task_summary
+
+Task rules:
+- Complex user requests should generate tasks.
+- User can ignore/cross out any task.
+- Ignored tasks must not be executed.
+- Completed tasks should show a checkmark.
+- Failed tasks should show reason.
+- Blocked tasks should explain missing permission/context.
+- Task changes should be logged.
+- AI should not recreate ignored tasks unless user restores them.
+- AI should ask before changing the meaning of a user-edited task.
+
+
+17. APP SETTINGS TOOLS
+
+Purpose:
+Allow controlled modification of Sync settings.
+
+Tools:
+- read_settings
+- update_setting
+- reset_setting
+- export_settings
+- import_settings
+- update_model_settings
+- update_permission_settings
+- update_connector_settings
+- update_mcp_settings
+
+Rules:
+- Reading settings is safe.
+- Changing important settings requires approval.
+- Changing permissions requires approval.
+- Disabling safety confirmations requires explicit approval.
+- Settings changes are logged.
+
+
+18. SECURITY & SECRETS TOOLS
+
+Purpose:
+Protect secrets, credentials, and sensitive actions.
+
+Tools:
+- scan_for_secrets
+- detect_staged_secrets
+- mask_secret
+- validate_env_safety
+- inspect_permission_risk
+- classify_command_risk
+- classify_file_risk
+- block_dangerous_action
+- request_explicit_confirmation
+- create_safety_report
+
+Secret detection should check:
+- API keys
+- tokens
+- passwords
+- private keys
+- OAuth secrets
+- database URLs
+- webhook URLs
+- cloud credentials
+- .env files
+- SSH keys
+
+Rules:
+- AI should not display full secrets.
+- AI should not send secrets to normal chat context.
+- AI should warn before pushing secrets.
+- AI should block critical unsafe actions unless explicitly confirmed.
+- AI should recommend adding sensitive files to .gitignore if needed.
+
+
+19. DIAGNOSTICS TOOLS
+
+Purpose:
+Help diagnose app/project environment problems.
+
+Tools:
+- check_system_info
+- check_os_version
+- check_disk_space
+- check_memory_usage
+- check_cpu_info
+- check_gpu_info
+- check_node_installation
+- check_python_installation
+- check_rust_installation
+- check_git_installation
+- check_package_manager_installation
+- check_port_usage
+- inspect_error_logs
+- collect_debug_bundle
+
+Rules:
+- Diagnostics should be read-only by default.
+- Collecting debug bundles requires approval.
+- Debug bundles should exclude secrets.
+- System-wide diagnostics require user approval.
+
+
+20. EXPORT / IMPORT TOOLS
+
+Purpose:
+Allow the user to save or move Sync data.
+
+Tools:
+- export_session
+- export_history
+- export_tasks
+- export_prompts
+- export_project_summary
+- export_tool_logs
+- import_prompts
+- import_settings
+- import_project_profile
+
+Rules:
+- Exporting project content requires approval.
+- Exported logs should mask secrets.
+- User chooses export location.
+- Exports should include clear metadata.
+
+
+TOOL EXECUTION FLOW
+
+When the AI wants to use a tool, Sync should follow this flow:
+
+1. AI identifies needed tool.
+2. AI explains why the tool is needed.
+3. Sync checks permission rules.
+4. Sync classifies risk level.
+5. If approval is required, show approval card.
+6. User approves, denies, modifies, or ignores.
+7. If approved, Sync runs the tool.
+8. Tool result is shown to the user.
+9. Result is attached to the session if relevant.
+10. Tool call is logged in history.
+11. Related task status is updated.
+
+For multi-step workflows:
+- AI should create a task list first.
+- Each task can require tools.
+- Each tool call links to a task.
+- User can pause the workflow.
+- User can ignore tasks.
+- Ignored tasks are skipped.
+- Failed tasks show reason.
+- Blocked tasks show required permission/context.
+
+
+APPROVAL MODES
+
+Sync should allow these approval modes:
+
+Manual Mode:
+- Every tool action requires approval.
+
+Balanced Mode:
+- Safe read-only actions inside project are automatic.
+- Writes, commands, GitHub, MCP, and connectors require approval.
+
+Project Trusted Mode:
+- Read and low-risk project actions allowed.
+- Medium/high/critical actions still require approval.
+
+Autonomous Mode:
+- AI can run more actions automatically within configured limits.
+- Critical actions still require approval.
+- This mode must show a warning before enabling.
+
+Default mode:
+Balanced Mode.
+
+
+BLOCKED ACTIONS
+
+The following should be blocked or require extreme confirmation:
+- Formatting drives
+- Deleting the whole project
+- Deleting user directories
+- Exposing secrets
+- Sending secrets to external services
+- Running unknown downloaded scripts
+- Force pushing without confirmation
+- Deleting GitHub repositories
+- Making private repos public
+- Disabling all safety rules
+- Changing system security settings
+- Running destructive commands outside the project folder
+
+
+FINAL OUTPUT REQUEST
+
+Create a complete AI tools specification for Sync.
+
+Include:
+- tool system overview
+- permission model
+- risk model
+- tool approval flow
+- tool logging system
+- all tool categories
+- individual tool names
+- what each category can do
+- default permissions
+- sensitive actions
+- blocked actions
+- Git tools
+- GitHub tools
+- repository tools
+- MCP tools
+- connector tools
+- local computer tools
+- terminal tools
+- file tools
+- task tools
+- memory tools
+- security tools
+- diagnostics tools
+- example tool workflows
+- recommended MVP tool set
+- future advanced tools
+
+Do not write code.
+Do not design UI.
+Do not choose frameworks.
+Do not generate implementation files.
+Focus only on what tools the AI should have access to and how those tools should behave safely inside Sync.

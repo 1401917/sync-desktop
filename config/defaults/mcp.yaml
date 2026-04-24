@@ -1,0 +1,19 @@
+mcpServers:
+  - id: documentation-lookup
+    name: Documentation Lookup
+    transport: stdio
+    trust: limited
+    status: Not configured
+    defaultPermission: Ask every time
+  - id: browser-automation
+    name: Browser Automation
+    transport: stdio
+    trust: untrusted
+    status: Disabled
+    defaultPermission: Ask every time
+  - id: database-inspector
+    name: Database Inspector
+    transport: stdio
+    trust: untrusted
+    status: Disabled
+    defaultPermission: Ask every time

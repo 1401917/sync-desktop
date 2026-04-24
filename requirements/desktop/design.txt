@@ -1,0 +1,346 @@
+Create a desktop application UI design for Windows that is heavily inspired by the clean, premium, minimal aesthetic of Codex / ChatGPT desktop, but it must be an original product with its own identity and no copied branding.
+
+The goal is to design a modern AI coding workspace desktop app. Focus only on the visual design, layout, UI structure, spacing, typography, color system, and exact textual content. Do not describe implementation details, frameworks, libraries, or programming languages. Only describe the product design in a highly precise way.
+
+Design the app as a polished Windows desktop EXE application with a dark theme by default. The whole UI should feel elegant, sharp, soft, modern, and premium. The interface must look refined, high-end, highly usable, and similar in quality to top-tier desktop AI tools.
+
+Overall layout:
+- The window should use a clean desktop layout with rounded outer corners.
+- Main app background color: #0B0F14
+- Main content surface color: #0F141B
+- Secondary surface panels: #121922
+- Tertiary surface / hover cards: #18212C
+- Borders and separators: #222C38
+- Primary text color: #E7EDF5
+- Secondary text color: #A8B3C2
+- Muted text color: #7F8A99
+- Accent color: #4C8DFF
+- Accent hover color: #6AA3FF
+- Success color: #33C27F
+- Warning color: #F3B94E
+- Error color: #FF6B6B
+- Input background: #111821
+- Active selection background: #172231
+- Subtle glow / focus ring: rgba(76, 141, 255, 0.28)
+
+Window styling:
+- The app should have a very clean top-level shell.
+- Use soft 1px borders and subtle contrast between layers.
+- The window should feel frameless or nearly frameless, but still like a real desktop app.
+- Border radius for the full window: 16px
+- Inner panel radius: 14px
+- Small controls radius: 10px
+- Buttons radius: 12px
+- Inputs radius: 14px
+
+Typography:
+- Use a modern clean sans-serif UI font for all interface text.
+- Use a monospace font only for code, terminal-like blocks, and file names when appropriate.
+- Headings should feel light but premium, not bulky.
+- Font sizes:
+  - App title / major headers: 20px semibold
+  - Section titles: 15px semibold
+  - Standard body text: 13px regular
+  - Secondary text / metadata: 12px regular
+  - Small labels: 11px medium
+  - Input text: 14px regular
+- Text should have generous breathing room and very clean spacing.
+
+Main structure:
+The app should be divided into 4 main areas:
+1. Top bar
+2. Left sidebar
+3. Main center workspace
+4. Right context panel
+5. Bottom prompt composer integrated into the center workspace
+
+Top bar:
+- Height: 54px
+- Full width across the app
+- Background: slightly darker than the main content, around #0C1117
+- Bottom border: 1px solid #1B2430
+- Padding left and right: 18px
+
+Top bar left side:
+- A small circular brand mark placeholder, simple and minimal
+- Next to it the app name text: "Nexa"
+- Under no circumstances use the word Codex as the product name
+- The brand area should feel subtle, not oversized
+
+Top bar center:
+- A compact workspace selector pill
+- Text: "Workspace"
+- Selected workspace name: "Main Project"
+- Add a small downward chevron
+- The pill background: #121A24
+- Border: #243041
+- Text color: #DCE6F2
+
+Top bar right side:
+Show the following controls aligned horizontally with 10px spacing:
+- Search button with text: "Search"
+- Command button with text: "Commands"
+- Notifications icon button
+- Settings icon button
+- User profile button with small avatar circle and text: "Omri"
+These controls should be subtle and elegant, not heavy.
+
+Left sidebar:
+- Width: 270px
+- Height: full height below the top bar
+- Background: #0E141C
+- Right border: 1px solid #1B2430
+- Padding: 14px
+
+At the top of the left sidebar:
+- A primary action button with full width
+- Text: "New Session"
+- Background: #4C8DFF
+- Text color: white
+- Hover background: #6AA3FF
+- Height: 42px
+- Rounded corners: 12px
+
+Below it, add a section title:
+- "Navigation"
+
+Below Navigation, show vertical nav items with icons and text:
+- "Home"
+- "Projects"
+- "Agents"
+- "History"
+- "Prompts"
+- "Settings"
+
+Each nav item:
+- Height: 38px
+- Rounded corners: 10px
+- Default text color: #B7C1CF
+- Default icon color: #8E9BAA
+- Hover background: #141D28
+- Active item background: #172231
+- Active item text color: #EAF2FC
+- Active item icon color: #79A8FF
+
+Set "Projects" as the active item.
+
+Below the navigation section, add another section title:
+- "Recent Projects"
+
+Add a clean vertical list of project items:
+1. "MainPy"
+2. "DarkStudio AI"
+3. "Steal a Time"
+4. "Admin System"
+5. "Portfolio Site"
+
+Each project row:
+- Show project name
+- Show a small secondary label below with muted text:
+  - For MainPy: "Updated 5m ago"
+  - For DarkStudio AI: "Updated 1h ago"
+  - For Steal a Time: "Updated yesterday"
+  - For Admin System: "Updated 2 days ago"
+  - For Portfolio Site: "Updated 4 days ago"
+- Use a compact card-like row with hover state
+- Selected recent project should be "MainPy"
+
+Main center workspace:
+- This is the most important area
+- Background: #0F141B
+- It should feel large, calm, spacious, and premium
+- Use internal padding: 24px
+- The center workspace should contain:
+  1. Header area
+  2. Suggestion cards area
+  3. Conversation / content area
+  4. Prompt composer at the bottom
+
+Center header:
+- Large title text: "What do you want to build?"
+- Font size: 28px
+- Weight: semibold
+- Color: #F2F6FC
+- Below it, a smaller subtitle:
+  "Describe your idea, refine your interface, or ask the assistant to help you plan and build."
+- Subtitle font size: 14px
+- Subtitle color: #9DABBB
+- Keep the tone premium and minimal
+
+Below the header, place a row of suggestion cards.
+Each card should have:
+- Background: #111A24
+- Border: 1px solid #1F2A37
+- Radius: 16px
+- Padding: 16px
+- Width: around 220px
+- Height: around 88px
+- Hover background: #152131
+- Small title and one-line description
+
+Create 4 suggestion cards with these exact titles and descriptions:
+
+1. Title: "Design a desktop app"
+   Description: "Create a premium AI workspace with a modern layout."
+
+2. Title: "Plan the project"
+   Description: "Break the product into phases, systems, and priorities."
+
+3. Title: "Improve the UI"
+   Description: "Refine hierarchy, spacing, and visual consistency."
+
+4. Title: "Review the structure"
+   Description: "Audit the product flow and identify weak points."
+
+Below the suggestion cards, create the main conversation panel.
+This area should:
+- Fill the remaining vertical space
+- Use a slightly inset surface container
+- Background: #0F151D
+- Border: 1px solid #1C2633
+- Border radius: 18px
+- Padding: 20px
+- Feel like a professional AI conversation workspace
+
+Inside the conversation area, show one initial assistant message card.
+Assistant message card:
+- Background: #121A24
+- Border: 1px solid #1D2836
+- Radius: 16px
+- Padding: 18px
+- Maximum width: 920px
+- Align naturally within the conversation area
+
+Assistant message content:
+Header row:
+- Small assistant badge with dot
+- Badge text: "Assistant"
+- Timestamp text on the right: "Just now"
+
+Message text:
+"You're building a desktop AI workspace with a Codex-inspired feel. We can define the layout, color system, interactions, and visual hierarchy first, then move into structure and behavior."
+
+Below the assistant message, add a very subtle system hint line:
+- Text: "Tip: Start with layout and interface structure before defining actions and permissions."
+- Color: #7F8A99
+- Font size: 12px
+
+Bottom prompt composer:
+- This must sit at the bottom of the center workspace
+- It should feel like the core interaction area
+- Place it as a wide rounded container
+- Background: #111821
+- Border: 1px solid #243041
+- Radius: 18px
+- Padding: 14px 16px
+- Internal shadow: subtle
+- Outer shadow: soft and premium
+
+Inside the prompt composer:
+Top row:
+- A compact model selector pill on the left
+- Text: "Nexa Core"
+- Next to it a small mode pill with text: "Design"
+- On the right, add two subtle icon buttons: attachment and tools
+
+Main input area:
+- Large multiline input field
+- Placeholder text:
+  "Ask Nexa to design, improve, or plan your application..."
+- Text color when filled: #EAF2FC
+- Placeholder color: #748292
+- No harsh borders
+- Spacious and calm
+
+Bottom row inside composer:
+Left side:
+- Small ghost button with text: "Add context"
+- Small ghost button with text: "Attach file"
+
+Right side:
+- One primary send button
+- Text: "Generate"
+- Background: #4C8DFF
+- Hover background: #6AA3FF
+- Text color: white
+- Height: 38px
+- Horizontal padding: 18px
+- Radius: 12px
+
+Right context panel:
+- Width: 320px
+- Background: #0E141B
+- Left border: 1px solid #1B2430
+- Padding: 18px
+- This panel should feel like a context / details / metadata area
+
+At the top of the right panel:
+Section title:
+- "Context"
+
+Under it, show 3 stacked information cards.
+
+Card 1:
+- Title: "Current Project"
+- Main text: "MainPy"
+- Secondary text: "Desktop AI workspace"
+- Status pill: "Active"
+
+Card 2:
+- Title: "Selected Mode"
+- Main text: "Design Exploration"
+- Secondary text: "Visual direction and layout"
+- Status pill: "Focused"
+
+Card 3:
+- Title: "Next Step"
+- Main text: "Define UI behavior"
+- Secondary text: "Then continue to permissions and actions"
+- Status pill: "Planned"
+
+Each context card:
+- Background: #111A24
+- Border: 1px solid #1F2B39
+- Radius: 16px
+- Padding: 14px
+- Gap between cards: 12px
+
+Below the cards, create a section titled:
+- "Quick Details"
+
+Under it, show a compact detail list with rows:
+- Product Type: "Desktop EXE"
+- Style: "Minimal / Premium"
+- Theme: "Dark"
+- Layout: "3-panel workspace"
+- Focus: "AI coding workflow"
+
+Each row:
+- Label color: #91A0B1
+- Value color: #E4ECF7
+- Divider between rows: 1px solid #1A2431
+
+Visual behavior and quality rules:
+- The UI must look like a real desktop application, not a web page mockup.
+- Everything should feel aligned, measured, and consistent.
+- Use strong spacing discipline and clean layout rhythm.
+- Avoid clutter.
+- Avoid oversized icons.
+- Avoid neon overload.
+- Avoid gaming-style visuals.
+- Avoid loud gradients.
+- Keep the visual tone intelligent, calm, technical, elegant, and highly polished.
+- Use very subtle shadows.
+- Use subtle hover and focus states.
+- Keep contrast high enough for readability but not overly harsh.
+- The aesthetic should feel like premium AI productivity software.
+
+Important design constraints:
+- The design should be Codex-inspired, but must remain original.
+- Do not use OpenAI branding, ChatGPT branding, Codex branding, or copied logos.
+- Keep the UI mature, premium, and software-like.
+- Make the center workspace feel like the primary focal point.
+- The design should look excellent on a 1440px to 1600px wide desktop window.
+- The app should feel highly suitable for coding, AI planning, and professional workflows.
+
+Return the result as a fully detailed UI design specification with exact structure, exact labels, exact sections, exact styling direction, and a cohesive premium visual language.

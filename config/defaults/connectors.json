@@ -1,0 +1,30 @@
+{
+  "connectors": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "status": "Not connected",
+      "defaultPermission": "Ask every time",
+      "destructiveActions": "Typed confirmation"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "status": "Requires authentication",
+      "defaultPermission": "Provider only",
+      "secretStorage": "secure credential store"
+    },
+    {
+      "id": "google-drive",
+      "name": "Google Drive",
+      "status": "Disabled",
+      "defaultPermission": "Ask every time"
+    },
+    {
+      "id": "figma",
+      "name": "Figma",
+      "status": "Disabled",
+      "defaultPermission": "Ask every time"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+workflows:
+  buildFeature:
+    steps:
+      - understand request
+      - create visible task list
+      - inspect allowed context
+      - classify required permissions
+      - propose diff
+      - wait for approval
+      - snapshot files
+      - apply approved changes
+      - record history
+  createGitHubRepository:
+    steps:
+      - verify GitHub connection
+      - confirm repository name
+      - confirm private or public visibility
+      - inspect local Git status
+      - request approval
+      - create repository
+      - add remote
+      - request commit and push approval
+      - save repository link to memory and history
+  useMcpTool:
+    steps:
+      - find configured MCP server
+      - classify tool risk
+      - show approval card
+      - run approved MCP call
+      - attach result as untrusted context
+      - record history
