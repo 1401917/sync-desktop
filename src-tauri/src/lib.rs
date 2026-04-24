@@ -15,7 +15,7 @@ use std::sync::Mutex;
 
 use models::{
     ActionClassification, BootstrapPayload, GitHubConnectionStatus, GitHubRepositorySummary,
-    McpConnectionTest, ProjectScan,
+    GitHubLoginResult, McpConnectionTest, ProjectScan,
 };
 use tauri::{AppHandle, State};
 
@@ -69,6 +69,11 @@ fn github_list_repositories(limit: u8) -> Result<Vec<GitHubRepositorySummary>, S
 }
 
 #[tauri::command]
+fn github_login_with_cli() -> GitHubLoginResult {
+    github::start_cli_login()
+}
+
+#[tauri::command]
 fn mcp_test_connection(target: String) -> McpConnectionTest {
     mcp::test_connection(target)
 }
@@ -85,6 +90,7 @@ pub fn run() {
             git_status,
             github_connection_status,
             github_list_repositories,
+            github_login_with_cli,
             mcp_test_connection
         ])
         .run(tauri::generate_context!())

@@ -136,3 +136,9 @@ export interface McpConnectionTest {
   status: string;
   message: string;
 }
+
+export interface GitHubLoginResult {
+  started: boolean;
+  status: string;
+  message: string;
+}

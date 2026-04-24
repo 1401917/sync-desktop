@@ -161,3 +161,11 @@ pub struct McpConnectionTest {
     pub status: String,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHubLoginResult {
+    pub started: bool,
+    pub status: String,
+    pub message: String,
+}

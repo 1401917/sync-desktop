@@ -1,7 +1,7 @@
 use reqwest::blocking::Client;
 use serde::Deserialize;
 
-use crate::models::{GitHubConnectionStatus, GitHubRepositorySummary};
+use crate::models::{GitHubConnectionStatus, GitHubLoginResult, GitHubRepositorySummary};
 
 #[derive(Debug, Deserialize)]
 struct GitHubUser {
@@ -102,6 +102,41 @@ pub fn list_repositories(limit: u8) -> Result<Vec<GitHubRepositorySummary>, Stri
         .collect())
 }
 
+pub fn start_cli_login() -> GitHubLoginResult {
+    if github_cli_available().is_err() {
+        return GitHubLoginResult {
+            started: false,
+            status: "GitHub CLI missing".to_string(),
+            message: "Install GitHub CLI, then use Login with GitHub again.".to_string(),
+        };
+    }
+
+    match std::process::Command::new("gh")
+        .args([
+            "auth",
+            "login",
+            "--hostname",
+            "github.com",
+            "--web",
+            "--git-protocol",
+            "https",
+        ])
+        .spawn()
+    {
+        Ok(_) => GitHubLoginResult {
+            started: true,
+            status: "Login started".to_string(),
+            message: "GitHub CLI opened the browser login flow. Complete it, then refresh Sync."
+                .to_string(),
+        },
+        Err(error) => GitHubLoginResult {
+            started: false,
+            status: "Login failed".to_string(),
+            message: format!("Could not start GitHub CLI login: {error}"),
+        },
+    }
+}
+
 fn github_token() -> Option<String> {
     std::env::var("GITHUB_TOKEN")
         .ok()
@@ -118,4 +153,17 @@ fn client() -> Client {
         .user_agent("Sync-Desktop-MVP")
         .build()
         .expect("GitHub HTTP client")
+}
+
+fn github_cli_available() -> Result<(), String> {
+    let output = std::process::Command::new("gh")
+        .arg("--version")
+        .output()
+        .map_err(|error| format!("GitHub CLI is not available: {error}"))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
 }

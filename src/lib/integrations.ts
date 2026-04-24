@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   GitHubConnectionStatus,
+  GitHubLoginResult,
   GitHubRepositorySummary,
   McpConnectionTest
 } from "../types/domain";
@@ -28,6 +29,18 @@ export async function listGitHubRepositories(limit = 8): Promise<GitHubRepositor
   }
 
   return invoke<GitHubRepositorySummary[]>("github_list_repositories", { limit });
+}
+
+export async function loginWithGitHubCli(): Promise<GitHubLoginResult> {
+  if (!isTauriRuntime()) {
+    return {
+      started: false,
+      status: "Desktop only",
+      message: "GitHub login starts from the Sync desktop app."
+    };
+  }
+
+  return invoke<GitHubLoginResult>("github_login_with_cli");
 }
 
 export async function testMcpConnection(target: string): Promise<McpConnectionTest> {
