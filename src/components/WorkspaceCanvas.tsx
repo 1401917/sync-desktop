@@ -5,6 +5,8 @@ import {
   SlidersHorizontal,
   TerminalSquare
 } from "lucide-react";
+import { useState } from "react";
+import { GitHubAuthFrame } from "../features/integrations/GitHubAuthFrame";
 import type { BootstrapPayload, NavKey, ProjectSummary, SyncTask } from "../types/domain";
 import { ScreenPlaceholder } from "./ScreenPlaceholder";
 
@@ -25,6 +27,21 @@ export function WorkspaceCanvas({
   prompt,
   onPromptChange
 }: WorkspaceCanvasProps) {
+  const [githubIntent, setGithubIntent] = useState<string | null>(null);
+
+  function submitPrompt() {
+    const trimmedPrompt = prompt.trim();
+
+    if (!trimmedPrompt) {
+      return;
+    }
+
+    if (requiresGitHubAccount(trimmedPrompt)) {
+      setGithubIntent(trimmedPrompt);
+      return;
+    }
+  }
+
   return (
     <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#202020]">
       {activeView === "projects" ? (
@@ -50,17 +67,46 @@ export function WorkspaceCanvas({
         />
       )}
 
-      <PromptComposer prompt={prompt} onPromptChange={onPromptChange} />
+      {githubIntent ? (
+        <GitHubAuthFrame intent={githubIntent} onClose={() => setGithubIntent(null)} />
+      ) : null}
+
+      <PromptComposer
+        prompt={prompt}
+        onPromptChange={onPromptChange}
+        onSubmit={submitPrompt}
+      />
     </section>
   );
 }
 
+function requiresGitHubAccount(prompt: string) {
+  const normalizedPrompt = prompt.toLowerCase();
+  const remoteGitHubPatterns = [
+    /\bgithub\b/,
+    /\bcreate\s+(a\s+)?repo(sitory)?\b/,
+    /\bnew\s+repo(sitory)?\b/,
+    /\bpush\b/,
+    /\bpull\s+request\b/,
+    /\bpr\b/,
+    /\bissue\b/,
+    /\bfork\b/,
+    /\brelease\b/,
+    /\bgist\b/,
+    /\bclone\s+(private|github)\b/
+  ];
+
+  return remoteGitHubPatterns.some((pattern) => pattern.test(normalizedPrompt));
+}
+
 function PromptComposer({
   prompt,
-  onPromptChange
+  onPromptChange,
+  onSubmit
 }: {
   prompt: string;
   onPromptChange: (value: string) => void;
+  onSubmit: () => void;
 }) {
   return (
     <div className="absolute bottom-5 left-1/2 w-[min(560px,calc(100%-56px))] -translate-x-1/2 rounded-xl border border-[#343434] bg-[#272727] px-3 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -85,6 +131,12 @@ function PromptComposer({
       <textarea
         value={prompt}
         onChange={(event) => onPromptChange(event.target.value)}
+        onKeyDown={(event) => {
+          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            event.preventDefault();
+            onSubmit();
+          }
+        }}
         className="min-h-[44px] w-full resize-none border-none bg-transparent text-[12px] leading-5 text-[#f2f2f2] outline-none placeholder:text-[#777]"
         placeholder="Ask Sync to build..."
       />
@@ -99,7 +151,11 @@ function PromptComposer({
             File
           </button>
         </div>
-        <button className="grid h-7 w-7 place-items-center rounded-full bg-[#f2f2f2] text-[#1f1f1f] transition hover:bg-white">
+        <button
+          className="grid h-7 w-7 place-items-center rounded-full bg-[#f2f2f2] text-[#1f1f1f] transition hover:bg-white"
+          onClick={onSubmit}
+          aria-label="Send prompt"
+        >
           <Send size={13} />
         </button>
       </div>

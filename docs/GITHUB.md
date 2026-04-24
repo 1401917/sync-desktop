@@ -25,13 +25,27 @@ Alternative:
 $env:GITHUB_TOKEN="your_token"
 ```
 
-## Sync App GitHub Screen
+## Sync App GitHub Prompt
 
-The app's GitHub screen can:
+Sync does not keep GitHub as a permanent sidebar destination. The app opens a compact GitHub sign-in frame only when an AI request needs GitHub account access, such as:
 
-- start GitHub CLI login
-- check authenticated user
-- list recent repositories
+- creating a repository
+- pushing branches
+- opening pull requests
+- creating issues
+- accessing private GitHub repositories
+
+The prompt can start GitHub CLI login, check the authenticated user, and then let the guarded GitHub flow continue.
+
+## OAuth App Registration
+
+For the GitHub OAuth app form:
+
+- Application name: `Sync Desktop`
+- Homepage URL: `https://github.com/1401917/sync-desktop`
+- Application description: `Secure local-first desktop AI development workspace for projects, agents, tasks, diffs, GitHub workflows, MCP servers, and connectors.`
+- Authorization callback URL: `http://127.0.0.1:1420/auth/github/callback`
+- Enable Device Flow: enabled
 
 Future GitHub write actions should require explicit approval before:
 

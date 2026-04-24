@@ -3,7 +3,6 @@ import { AppShell } from "./components/AppShell";
 import { bootstrapSync } from "./lib/backend";
 import { demoPayload } from "./lib/seed";
 import type { BootstrapPayload, NavKey, SyncTask } from "./types/domain";
-import { ignoreTask, restoreTask, updateTaskStatus } from "./features/tasks/taskLogic";
 
 export default function App() {
   const [payload, setPayload] = useState<BootstrapPayload>(demoPayload);
@@ -42,13 +41,6 @@ export default function App() {
       prompt={prompt}
       onPromptChange={setPrompt}
       onNavigate={setActiveView}
-      onIgnoreTask={(taskId) =>
-        setTasks((currentTasks) => ignoreTask(currentTasks, taskId, "Excluded by user"))
-      }
-      onRestoreTask={(taskId) => setTasks((currentTasks) => restoreTask(currentTasks, taskId))}
-      onCompleteTask={(taskId) =>
-        setTasks((currentTasks) => updateTaskStatus(currentTasks, taskId, "Completed"))
-      }
     />
   );
 }

@@ -11,9 +11,6 @@ interface AppShellProps {
   prompt: string;
   onPromptChange: (value: string) => void;
   onNavigate: (view: NavKey) => void;
-  onIgnoreTask: (taskId: string) => void;
-  onRestoreTask: (taskId: string) => void;
-  onCompleteTask: (taskId: string) => void;
 }
 
 export function AppShell({
@@ -23,10 +20,7 @@ export function AppShell({
   tasks,
   prompt,
   onPromptChange,
-  onNavigate,
-  onIgnoreTask,
-  onRestoreTask,
-  onCompleteTask
+  onNavigate
 }: AppShellProps) {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#070707] text-sync-text">
@@ -36,12 +30,7 @@ export function AppShell({
           <div className="flex min-h-0 flex-1 bg-[#202020]">
             <Sidebar
               activeView={activeView}
-              projects={payload.recentProjects}
-              tasks={tasks}
               onNavigate={onNavigate}
-              onIgnoreTask={onIgnoreTask}
-              onRestoreTask={onRestoreTask}
-              onCompleteTask={onCompleteTask}
             />
             <WorkspaceCanvas
               activeView={activeView}

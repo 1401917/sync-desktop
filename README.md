@@ -17,8 +17,8 @@ This repository contains the MVP desktop foundation:
 - Rust security primitives for risk classification, path safety, and secret masking
 - Project folder scanning with sensitive file detection
 - Git read tooling
+- On-demand GitHub sign-in prompt for remote Git/GitHub actions
 - GitHub API status/repository listing through `GITHUB_TOKEN`, `GH_TOKEN`, or GitHub CLI auth
-- GitHub CLI login launcher
 - MCP command/endpoint connection probe
 - Connectors management surface
 
@@ -96,10 +96,13 @@ gh auth login --web --git-protocol https
 
 After CLI login, Sync can read the stored CLI token with `gh auth token` and use it for safe GitHub read actions.
 
-Inside Sync, open the GitHub screen and use:
+Inside Sync, GitHub sign-in appears only when an AI request needs a GitHub account, such as:
 
-- `Login with GitHub`
-- `Check GitHub`
+- creating a repository
+- pushing branches
+- opening pull requests
+- creating issues
+- accessing private GitHub repositories
 
 GitHub write actions should remain approval-gated. The MVP currently supports safe connection status and repository listing.
 
