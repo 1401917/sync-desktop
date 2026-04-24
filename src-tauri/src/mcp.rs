@@ -1,6 +1,7 @@
 use crate::models::McpServerSummary;
 use crate::models::McpConnectionTest;
 
+#[allow(dead_code)]
 pub fn default_servers() -> Vec<McpServerSummary> {
     vec![McpServerSummary {
         id: "documentation".to_string(),

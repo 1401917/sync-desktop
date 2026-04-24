@@ -14,21 +14,16 @@ export default function App() {
     let mounted = true;
 
     bootstrapSync().then((nextPayload) => {
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setPayload(nextPayload);
       setTasks(nextPayload.activeTasks);
     });
 
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const selectedProject = useMemo(
-    () => payload.recentProjects.find((project) => project.selected) ?? payload.recentProjects[0],
+    () => payload.recentProjects.find((p) => p.selected) ?? payload.recentProjects[0],
     [payload.recentProjects]
   );
 

@@ -1,20 +1,28 @@
 import {
+  ArrowLeft,
+  ArrowRight,
   Bell,
   ChevronDown,
   Command,
+  Download,
+  GitBranch,
   Maximize2,
   Minus,
+  PanelLeft,
   Search,
   Settings,
   X
 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { PointerEvent } from "react";
+import type { MouseEvent, PointerEvent } from "react";
 import type { BootstrapPayload } from "../types/domain";
 
 interface TopBarProps {
   payload: BootstrapPayload;
 }
+
+const menuItems = ["File", "Edit", "View", "Window", "Help"];
+const updateAvailable = true;
 
 export function TopBar({ payload }: TopBarProps) {
   const appWindow = getCurrentWindow();
@@ -41,28 +49,65 @@ export function TopBar({ payload }: TopBarProps) {
     await appWindow.close().catch(() => undefined);
   }
 
+  async function maximizeFromTitlebar(event: MouseEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest("button, [data-no-drag='true']")) {
+      return;
+    }
+
+    await toggleMaximize();
+  }
+
   return (
     <header
       data-tauri-drag-region
       onPointerDown={startDragging}
-      onDoubleClick={toggleMaximize}
-      className="flex h-[34px] shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1b1b1b] pl-3 pr-2"
+      onDoubleClick={maximizeFromTitlebar}
+      className="flex h-[40px] shrink-0 items-center justify-between border-b border-[#242424] bg-[#1b1b1b] pl-2.5 pr-2"
     >
-      <div data-tauri-drag-region className="flex w-[190px] items-center gap-2">
-        <div className="grid h-4 w-4 place-items-center rounded-[4px] border border-[#343434] bg-[#222]">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#f5f5f5]" />
+      <div data-tauri-drag-region className="flex min-w-0 flex-1 items-center gap-1.5">
+        <button data-no-drag="true" className="titlebar-button" aria-label="Toggle sidebar">
+          <PanelLeft size={13} />
+        </button>
+        <button data-no-drag="true" className="titlebar-button" aria-label="Back">
+          <ArrowLeft size={13} />
+        </button>
+        <button data-no-drag="true" className="titlebar-button" aria-label="Forward">
+          <ArrowRight size={13} />
+        </button>
+
+        <div data-tauri-drag-region className="ml-1 flex items-center gap-2">
+          <div className="grid h-[18px] w-[18px] place-items-center rounded-full border border-[#353535] bg-[#242424]">
+            <div className="h-2 w-2 rounded-full bg-[#4c9bff]" />
+          </div>
+          <span data-tauri-drag-region className="text-[12px] font-medium text-[#eeeeee]">
+            {payload.appName}
+          </span>
         </div>
-        <span data-tauri-drag-region className="text-[11px] font-medium text-[#d8d8d8]">
-          {payload.appName}
-        </span>
+
+        <nav className="ml-4 flex items-center gap-1">
+          {menuItems.map((item) => (
+            <button key={item} data-no-drag="true" className="app-menu-button">
+              {item}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      <button data-no-drag="true" className="flex h-[22px] items-center gap-1.5 rounded-md border border-[#343434] bg-[#242424] px-2 text-[11px] text-[#dcdcdc] transition hover:bg-[#2b2b2b]">
-        <span>Main Project</span>
-        <ChevronDown size={12} />
-      </button>
+      <div data-tauri-drag-region className="flex shrink-0 items-center gap-2">
+        <button data-no-drag="true" className="toolbar-chip">
+          <GitBranch size={12} />
+          <span>Main Project</span>
+          <ChevronDown size={12} />
+        </button>
+      </div>
 
-      <div className="flex w-[190px] items-center justify-end gap-1">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
+        {updateAvailable ? (
+          <button data-no-drag="true" className="update-button" aria-label="Update Sync">
+            <Download size={12} />
+            <span>Update</span>
+          </button>
+        ) : null}
         <button data-no-drag="true" className="titlebar-button" aria-label="Search">
           <Search size={12} />
         </button>

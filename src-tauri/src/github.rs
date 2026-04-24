@@ -1,9 +1,139 @@
+use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use reqwest::blocking::Client;
 use serde::Deserialize;
 
 use crate::models::{GitHubConnectionStatus, GitHubLoginResult, GitHubRepositorySummary};
+
+const DEFAULT_GITHUB_CLIENT_ID: &str = "Ov23liTaKFcH2h6cAMXV";
+
+fn token_path() -> PathBuf {
+    let base = std::env::var("APPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."));
+    base.join("Sync").join("github_token")
+}
+
+fn stored_token() -> Option<String> {
+    std::fs::read_to_string(token_path())
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn save_token(token: &str) -> Result<(), String> {
+    let path = token_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create token dir: {e}"))?;
+    }
+    std::fs::write(&path, token).map_err(|e| format!("Failed to save token: {e}"))
+}
+
+fn github_client_id() -> String {
+    std::env::var("SYNC_GITHUB_CLIENT_ID")
+        .ok()
+        .filter(|client_id| !client_id.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_GITHUB_CLIENT_ID.to_string())
+}
+
+#[derive(Deserialize)]
+struct DeviceCodeResponse {
+    device_code: String,
+    user_code: String,
+    verification_uri: String,
+    expires_in: u64,
+    interval: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct TokenResponse {
+    access_token: Option<String>,
+    error: Option<String>,
+    error_description: Option<String>,
+}
+
+fn request_device_code(client_id: &str) -> Result<DeviceCodeResponse, String> {
+    client()
+        .post("https://github.com/login/device/code")
+        .header("Accept", "application/json")
+        .form(&[("client_id", client_id), ("scope", "repo user")])
+        .send()
+        .map_err(|error| format!("GitHub device-code request failed: {error}"))?
+        .json::<DeviceCodeResponse>()
+        .map_err(|error| format!("GitHub device-code response could not be parsed: {error}"))
+}
+
+pub fn start_oauth() -> GitHubLoginResult {
+    let client_id = github_client_id();
+    let device = match request_device_code(&client_id) {
+        Ok(device) => device,
+        Err(error) => {
+            return GitHubLoginResult {
+                started: false,
+                status: "Error".to_string(),
+                message: error,
+            };
+        }
+    };
+
+    let verification_uri = device.verification_uri.clone();
+    let user_code = device.user_code.clone();
+    let device_code = device.device_code.clone();
+    let expires_in = device.expires_in;
+    let mut interval = device.interval.unwrap_or(5).max(1);
+
+    thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(expires_in);
+
+        while Instant::now() < deadline {
+            thread::sleep(Duration::from_secs(interval));
+
+            let response = client()
+                .post("https://github.com/login/oauth/access_token")
+                .header("Accept", "application/json")
+                .form(&[
+                    ("client_id", client_id.as_str()),
+                    ("device_code", device_code.as_str()),
+                    (
+                        "grant_type",
+                        "urn:ietf:params:oauth:grant-type:device_code",
+                    ),
+                ])
+                .send()
+                .and_then(|response| response.json::<TokenResponse>());
+
+            let Ok(response) = response else {
+                continue;
+            };
+
+            if let Some(token) = response.access_token {
+                let _ = save_token(&token);
+                break;
+            }
+
+            match response.error.as_deref() {
+                Some("authorization_pending") => {}
+                Some("slow_down") => interval += 5,
+                Some("expired_token") | Some("access_denied") => break,
+                Some(_) => {
+                    let _ = response.error_description;
+                    break;
+                }
+                None => {}
+            }
+        }
+    });
+
+    GitHubLoginResult {
+        started: true,
+        status: verification_uri,
+        message: format!("Enter code {user_code} on GitHub. Sync will detect the authorization automatically."),
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct GitHubUser {
@@ -142,9 +272,12 @@ pub fn start_cli_login() -> GitHubLoginResult {
 }
 
 fn github_token() -> Option<String> {
-    std::env::var("GITHUB_TOKEN")
-        .ok()
-        .filter(|token| !token.trim().is_empty())
+    stored_token()
+        .or_else(|| {
+            std::env::var("GITHUB_TOKEN")
+                .ok()
+                .filter(|token| !token.trim().is_empty())
+        })
         .or_else(|| {
             std::env::var("GH_TOKEN")
                 .ok()

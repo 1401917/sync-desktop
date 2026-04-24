@@ -43,6 +43,26 @@ export async function loginWithGitHubCli(): Promise<GitHubLoginResult> {
   return invoke<GitHubLoginResult>("github_login_with_cli");
 }
 
+export async function startGitHubOAuth(): Promise<GitHubLoginResult> {
+  if (!isTauriRuntime()) {
+    return {
+      started: false,
+      status: "Desktop only",
+      message: "GitHub OAuth starts from the Sync desktop app."
+    };
+  }
+
+  return invoke<GitHubLoginResult>("github_start_oauth");
+}
+
+export async function openUrl(url: string): Promise<void> {
+  if (!isTauriRuntime()) {
+    window.open(url, "_blank");
+    return;
+  }
+  await invoke("open_url", { url });
+}
+
 export async function testMcpConnection(target: string): Promise<McpConnectionTest> {
   if (!isTauriRuntime()) {
     return {

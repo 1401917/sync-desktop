@@ -151,6 +151,7 @@ pub fn is_sensitive_path(path: &Path) -> bool {
         || file_name.contains("private")
 }
 
+#[allow(dead_code)]
 pub fn ensure_within_root(root: &Path, target: &Path) -> Result<PathBuf, String> {
     let canonical_root = root
         .canonicalize()

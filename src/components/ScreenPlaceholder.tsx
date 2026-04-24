@@ -17,6 +17,7 @@ import type { BootstrapPayload, NavKey, ProjectSummary, SyncTask } from "../type
 import { ConnectorsPanel } from "../features/integrations/ConnectorsPanel";
 import { GitHubPanel } from "../features/integrations/GitHubPanel";
 import { McpPanel } from "../features/integrations/McpPanel";
+import { SettingsPanel } from "../features/settings/SettingsPanel";
 
 const screenMeta: Record<NavKey, { title: string; subtitle: string; icon: typeof Bot }> = {
   home: {
@@ -122,6 +123,10 @@ export function ScreenPlaceholder({
 
   if (activeView === "connectors") {
     return <ConnectorsPanel payload={payload} />;
+  }
+
+  if (activeView === "settings") {
+    return <SettingsPanel payload={payload} />;
   }
 
   return (

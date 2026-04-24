@@ -18,6 +18,7 @@ use models::{
     GitHubLoginResult, McpConnectionTest, ProjectScan,
 };
 use tauri::{AppHandle, State};
+use tauri_plugin_opener::OpenerExt;
 
 #[derive(Default)]
 struct AppState {
@@ -74,6 +75,18 @@ fn github_login_with_cli() -> GitHubLoginResult {
 }
 
 #[tauri::command]
+fn github_start_oauth() -> GitHubLoginResult {
+    github::start_oauth()
+}
+
+#[tauri::command]
+fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|error| format!("Failed to open URL: {error}"))
+}
+
+#[tauri::command]
 fn mcp_test_connection(target: String) -> McpConnectionTest {
     mcp::test_connection(target)
 }
@@ -91,6 +104,8 @@ pub fn run() {
             github_connection_status,
             github_list_repositories,
             github_login_with_cli,
+            github_start_oauth,
+            open_url,
             mcp_test_connection
         ])
         .run(tauri::generate_context!())

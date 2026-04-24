@@ -1,5 +1,7 @@
 import {
+  Cloud,
   FileCode2,
+  GitBranch,
   Paperclip,
   Send,
   SlidersHorizontal,
@@ -43,19 +45,28 @@ export function WorkspaceCanvas({
   }
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#202020]">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#171717]">
       {activeView === "projects" ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 pb-[116px]">
-          <div className="grid h-8 w-8 place-items-center rounded-full border border-[#393939] bg-[#242424]">
-            <div className="h-3 w-3 rounded-full border border-[#d9d9d9]" />
-          </div>
-          <h1 className="mt-3 text-[14px] font-medium text-[#f1f1f1]">Let's build</h1>
-          <p className="mt-1 max-w-[260px] text-center text-[11px] leading-4 text-[#8d8d8d]">
-            Open a project or ask Sync to plan, edit, review, and apply changes with approval.
-          </p>
-          <div className="mt-4 flex items-center gap-1.5 rounded-full border border-[#333] bg-[#242424] px-2.5 py-1 text-[10px] text-[#858585]">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8">
+          <div className="mb-8 flex items-center gap-2 rounded-full border border-[#2f2f2f] bg-[#202020] px-3 py-1.5 text-[11px] text-[#8d8d8d]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#34c759]" />
             {payload.securityMode}
+          </div>
+
+          <h1 className="text-[25px] font-medium tracking-[-0.01em] text-[#f2f2f2]">
+            What should we build in Sync?
+          </h1>
+
+          <PromptComposer
+            prompt={prompt}
+            onPromptChange={onPromptChange}
+            onSubmit={submitPrompt}
+          />
+
+          <div className="mt-5 w-[min(680px,calc(100%-48px))] space-y-1">
+            <PromptHint icon={GitBranch} label="Prepare a GitHub repo, branch, and guarded push plan" />
+            <PromptHint icon={TerminalSquare} label="Review local changes and create an approval-gated task list" />
+            <PromptHint icon={Cloud} label="Connect MCP or external services only after permission review" />
           </div>
         </div>
       ) : (
@@ -70,12 +81,6 @@ export function WorkspaceCanvas({
       {githubIntent ? (
         <GitHubAuthFrame intent={githubIntent} onClose={() => setGithubIntent(null)} />
       ) : null}
-
-      <PromptComposer
-        prompt={prompt}
-        onPromptChange={onPromptChange}
-        onSubmit={submitPrompt}
-      />
     </section>
   );
 }
@@ -109,7 +114,7 @@ function PromptComposer({
   onSubmit: () => void;
 }) {
   return (
-    <div className="absolute bottom-5 left-1/2 w-[min(560px,calc(100%-56px))] -translate-x-1/2 rounded-xl border border-[#343434] bg-[#272727] px-3 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="mt-8 w-[min(720px,calc(100%-48px))] rounded-2xl border border-[#353535] bg-[#2a2a2a] px-3.5 py-3 shadow-[0_18px_55px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.045)]">
       <div className="mb-1.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="rounded-md border border-[#3a3a3a] bg-[#202020] px-2 py-0.5 text-[10px] text-[#cfcfcf]">
@@ -160,5 +165,20 @@ function PromptComposer({
         </button>
       </div>
     </div>
+  );
+}
+
+function PromptHint({
+  icon: Icon,
+  label
+}: {
+  icon: typeof FileCode2;
+  label: string;
+}) {
+  return (
+    <button className="flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-[12px] text-[#8f8f8f] transition hover:bg-[#202020] hover:text-[#d8d8d8]">
+      <Icon size={13} className="text-[#6f6f6f]" />
+      <span>{label}</span>
+    </button>
   );
 }

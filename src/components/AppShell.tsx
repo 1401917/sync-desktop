@@ -23,11 +23,11 @@ export function AppShell({
   onNavigate
 }: AppShellProps) {
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#070707] text-sync-text">
-      <div className="flex h-full min-h-0 overflow-hidden rounded-[10px] border border-[#252525] bg-[#1f1f1f] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+    <div className="h-screen w-screen overflow-hidden bg-[#141414] text-sync-text">
+      <div className="flex h-full min-h-0 overflow-hidden rounded-[10px] border border-[#252525] bg-[#1b1b1b] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar payload={payload} />
-          <div className="flex min-h-0 flex-1 bg-[#202020]">
+          <div className="flex min-h-0 flex-1 bg-[#171717]">
             <Sidebar
               activeView={activeView}
               onNavigate={onNavigate}

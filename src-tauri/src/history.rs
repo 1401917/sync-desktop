@@ -19,6 +19,7 @@ pub fn record_system_event(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn record_audit_event(
     connection: &Connection,
     action: &str,

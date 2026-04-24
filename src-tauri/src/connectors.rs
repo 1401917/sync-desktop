@@ -1,5 +1,6 @@
 use crate::models::ConnectorSummary;
 
+#[allow(dead_code)]
 pub fn default_connectors() -> Vec<ConnectorSummary> {
     vec![
         ConnectorSummary {

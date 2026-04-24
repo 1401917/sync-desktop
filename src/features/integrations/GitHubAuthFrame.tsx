@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Github, LogIn, RefreshCcw, X } from "lucide-react";
 import {
   checkGitHubConnection,
-  loginWithGitHubCli
+  loginWithGitHubCli,
+  openUrl,
+  startGitHubOAuth
 } from "../../lib/integrations";
 import type { GitHubConnectionStatus } from "../../types/domain";
 
@@ -21,7 +23,10 @@ export function GitHubAuthFrame({ intent, onClose }: GitHubAuthFrameProps) {
     setMessage(null);
 
     try {
-      const result = await loginWithGitHubCli();
+      const result = await startGitHubOAuth();
+      if (result.started && result.status.startsWith("https://")) {
+        await openUrl(result.status);
+      }
       setMessage(result.message);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
@@ -100,6 +105,24 @@ export function GitHubAuthFrame({ intent, onClose }: GitHubAuthFrameProps) {
           <button className="integration-primary mb-0" onClick={login} disabled={loading}>
             <LogIn size={13} />
             Login
+          </button>
+          <button
+            className="integration-primary mb-0"
+            onClick={async () => {
+              setLoading(true);
+              setMessage(null);
+              try {
+                const result = await loginWithGitHubCli();
+                setMessage(result.message);
+              } catch (error) {
+                setMessage(error instanceof Error ? error.message : String(error));
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+          >
+            CLI
           </button>
         </div>
       </section>

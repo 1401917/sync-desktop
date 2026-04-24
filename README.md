@@ -17,7 +17,7 @@ This repository contains the MVP desktop foundation:
 - Rust security primitives for risk classification, path safety, and secret masking
 - Project folder scanning with sensitive file detection
 - Git read tooling
-- On-demand GitHub sign-in prompt for remote Git/GitHub actions
+- On-demand GitHub Device Flow sign-in prompt for remote Git/GitHub actions
 - GitHub API status/repository listing through `GITHUB_TOKEN`, `GH_TOKEN`, or GitHub CLI auth
 - MCP command/endpoint connection probe
 - Connectors management surface
@@ -79,7 +79,7 @@ npm audit --audit-level=moderate
 
 ## GitHub Integration
 
-Sync supports two MVP GitHub authentication paths:
+Sync supports three MVP GitHub authentication paths:
 
 1. Environment token:
 
@@ -88,13 +88,15 @@ $env:GITHUB_TOKEN="ghp_your_token_here"
 npm run tauri:dev
 ```
 
-2. GitHub CLI login:
+2. GitHub Device Flow from the in-app prompt.
+
+3. GitHub CLI login:
 
 ```powershell
 gh auth login --web --git-protocol https
 ```
 
-After CLI login, Sync can read the stored CLI token with `gh auth token` and use it for safe GitHub read actions.
+Device Flow does not require storing an OAuth client secret inside the desktop app. After CLI login, Sync can also read the stored CLI token with `gh auth token` and use it for safe GitHub read actions.
 
 Inside Sync, GitHub sign-in appears only when an AI request needs a GitHub account, such as:
 
