@@ -17,7 +17,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ payload }: TopBarProps) {
-  const appWindow = window.__TAURI_INTERNALS__ ? getCurrentWindow() : null;
+  const appWindow = getCurrentWindow();
 
   async function startDragging(event: PointerEvent<HTMLElement>) {
     if ((event.target as HTMLElement).closest("button, [data-no-drag='true']")) {
@@ -25,18 +25,27 @@ export function TopBar({ payload }: TopBarProps) {
     }
 
     if (event.button === 0) {
-      await appWindow?.startDragging();
+      await appWindow.startDragging().catch(() => undefined);
     }
   }
 
   async function toggleMaximize() {
-    await appWindow?.toggleMaximize();
+    await appWindow.toggleMaximize().catch(() => undefined);
+  }
+
+  async function minimize() {
+    await appWindow.minimize().catch(() => undefined);
+  }
+
+  async function close() {
+    await appWindow.close().catch(() => undefined);
   }
 
   return (
     <header
       data-tauri-drag-region
       onPointerDown={startDragging}
+      onDoubleClick={toggleMaximize}
       className="flex h-[34px] shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1b1b1b] pl-3 pr-2"
     >
       <div data-tauri-drag-region className="flex w-[190px] items-center gap-2">
@@ -72,7 +81,7 @@ export function TopBar({ payload }: TopBarProps) {
           className="window-control"
           aria-label="Minimize"
           title="Minimize"
-          onClick={() => appWindow?.minimize()}
+          onClick={minimize}
         >
           <Minus size={13} />
         </button>
@@ -90,7 +99,7 @@ export function TopBar({ payload }: TopBarProps) {
           className="window-control close"
           aria-label="Close"
           title="Close"
-          onClick={() => appWindow?.close()}
+          onClick={close}
         >
           <X size={13} />
         </button>
