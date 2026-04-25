@@ -1,24 +1,15 @@
-# Sync — full release pipeline
-#
-# 1. Verifies the working tree
-# 2. Bumps + commits the version (already done in files; this just commits)
-# 3. Builds the Tauri Windows release (.exe + NSIS installer)
-# 4. Creates an annotated git tag
-# 5. Pushes the branch + tag to GitHub
-# 6. Creates a GitHub release via `gh` CLI and attaches the installer
-#
-# Usage:
-#   powershell -ExecutionPolicy Bypass -File .\release.ps1
-#   powershell -ExecutionPolicy Bypass -File .\release.ps1 -Version 0.2.1
-#
-# Requirements: git, npm, rustup, gh CLI (already authenticated via `gh auth login`)
+# Sync release pipeline. Avoids here-strings (which were tripping
+# PowerShell's parser on $Version: drive-qualified parsing) and uses
+# only simple double-quoted strings with ${var} delimiters everywhere a
+# variable touches punctuation.
 
 [CmdletBinding()]
 param(
-  [string]$Version = "0.2.0",
+  [string]$Version = "0.3.0",
   [switch]$SkipBuild,
   [switch]$SkipPush,
-  [switch]$SkipRelease
+  [switch]$SkipRelease,
+  [switch]$Launch
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,130 +20,136 @@ Set-Location $RepoRoot
 
 function Section($message) {
   Write-Host ""
-  Write-Host "==> $message" -ForegroundColor Cyan
+  Write-Host ("==> " + $message) -ForegroundColor Cyan
 }
 
 function Ok($message) {
-  Write-Host "    $message" -ForegroundColor Green
+  Write-Host ("    " + $message) -ForegroundColor Green
 }
 
-# ----- 1. Sanity checks -----
+# --- 1. Sanity checks ---
 Section "Pre-flight checks"
 
 git rev-parse --is-inside-work-tree | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Not a git repository. Run inside D:\Projects\codex." }
 
 $branch = git rev-parse --abbrev-ref HEAD
-Ok "Current branch: $branch"
+Ok ("Current branch: " + $branch)
 
 $remote = git remote get-url origin
-Ok "Origin: $remote"
+Ok ("Origin: " + $remote)
 
-# Verify the gitignored secrets file is not staged.
 $staged = git diff --cached --name-only
 if ($staged -match "src-tauri/\.cargo/config\.toml") {
-  throw "ABORT: src-tauri/.cargo/config.toml is staged for commit. That file is local-only configuration and must stay local."
+  throw "ABORT: src-tauri/.cargo/config.toml is staged. Keep it local-only."
 }
 
-# Make sure config.toml is actually ignored.
 $gitignored = git check-ignore -v "src-tauri/.cargo/config.toml" 2>$null
 if (-not $gitignored) {
-  Write-Warning "src-tauri/.cargo/config.toml is NOT in .gitignore. Aborting to prevent leaking your API key."
-  throw "Add 'src-tauri/.cargo/config.toml' to .gitignore before continuing."
+  throw "src-tauri/.cargo/config.toml is NOT in .gitignore. Add it before continuing."
 }
 Ok "Local secrets file is properly gitignored."
 
-# ----- 2. Stage + commit version bump and code changes -----
+# --- 2. Stage + commit ---
 Section "Staging changes"
 
 git add -A
 $changes = git diff --cached --name-only
 if (-not $changes) {
-  Write-Host "    No staged changes; assuming version bump already committed." -ForegroundColor Yellow
+  Write-Host "    No staged changes; assuming the version bump was already committed." -ForegroundColor Yellow
 } else {
   Write-Host "Files staged:"
-  $changes | ForEach-Object { Write-Host "  $_" }
+  $changes | ForEach-Object { Write-Host ("  " + $_) }
 
-  $commitMsg = @"
-Release v$Version: Codex-style sidebar, provider settings, safer credentials
+  # Build the commit message line by line. No here-string anywhere.
+  $msgLines = @()
+  $msgLines += ("Release v" + $Version)
+  $msgLines += ""
+  $msgLines += "- Codex-style sidebar (4 primary actions + Projects + Tools collapsible + Settings)"
+  $msgLines += "- Active Tasks panel hidden until a real session starts"
+  $msgLines += "- Neutral palette (no more blue accents)"
+  $msgLines += "- Top-bar menus (File / Edit / View / Window / Help) functional"
+  $msgLines += "- Real OpenAI-compatible chat completions with NVIDIA NIM, OpenAI, Groq, Together"
+  $msgLines += "- Multi-turn chat history replayed to the model on every turn"
+  $msgLines += "- API keys persisted to %APPDATA%\Sync\provider_keys\; SQLite stores only masked metadata"
+  $msgLines += "- NVIDIA auto-config via SYNC_DEFAULT_NVIDIA_KEY env from gitignored .cargo/config.toml"
+  $msgLines += "- Fixed SQL Got 3 needed 4 in INSERT INTO task_lists"
+  $msgLines += "- Fixed app freeze: Tauri commands moved to async + spawn_blocking"
+  $msgLines += "- Real chat UI with bubbles, Markdown rendering, animated thinking indicator"
+  $msgLines += "- Real History view with relative timestamps and grouped buckets"
+  $msgLines += "- Open Project Folder button auto-hides into a green opened badge"
+  $msgLines += "- Better GitHub Device Flow error messages"
+  $msgLines += "- TopBar safe in browser-preview workflow"
+  $msgLines += "- .gitignore excludes *.key, secrets.local.*, .cargo/config.toml"
 
-- Sidebar redesigned to match Codex layout (4 primary actions + Projects list + Tools collapsible + Settings)
-- Active Tasks panel hidden until a real session starts; neutral palette (no more blue accents)
-- TopBar menus (File/Edit/View/Window/Help) now functional with real handlers
-- Real AI provider calls via OpenAI-compatible /chat/completions for NVIDIA NIM, OpenAI, Groq, Together
-- Provider API keys persisted to %APPDATA%\Sync\provider_keys\; SQLite stores only masked metadata
-- Provider keys are not auto-seeded from compile-time environment variables
-- Fixed SQL Got 3 needed 4 in INSERT INTO task_lists (missing session_id param)
-- Open Project Folder button auto-hides into a green opened badge after a real folder is picked
-- GitHub Device Flow now returns meaningful errors instead of error decoding response body
-- .gitignore extended to exclude *.key, secrets.local.*, and the local Cargo config
-"@
-
+  $commitMsg = $msgLines -join [Environment]::NewLine
   git commit -m $commitMsg
   if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
   Ok "Commit created."
 }
 
-# ----- 3. Build the Windows release -----
+# --- 3. Build the Windows release ---
 if (-not $SkipBuild) {
   Section "Building Tauri release (this can take a few minutes)"
   npm run tauri:build
   if ($LASTEXITCODE -ne 0) { throw "Tauri build failed." }
 
   $exe = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
-  if (-not (Test-Path $exe)) { throw "Build finished but sync.exe is missing at $exe" }
-  Ok "sync.exe built: $exe"
+  if (-not (Test-Path $exe)) { throw ("Build finished but sync.exe is missing at " + $exe) }
+  Ok ("sync.exe built: " + $exe)
 
   $installer = Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -Filter "*setup*.exe" -ErrorAction SilentlyContinue |
     Select-Object -First 1
   if ($installer) {
-    Ok "Installer: $($installer.FullName)"
+    Ok ("Installer: " + $installer.FullName)
   } else {
     Write-Warning "No NSIS installer was produced. Will skip installer upload."
   }
 }
 
-# ----- 4. Create the git tag -----
-Section "Tagging v$Version"
+# --- 4. Tag ---
+$tagName = "v" + $Version
+Section ("Tagging " + $tagName)
 
-$existingTag = git tag --list "v$Version"
+$existingTag = git tag --list $tagName
 if ($existingTag) {
-  Write-Warning "Tag v$Version already exists locally — skipping git tag."
+  Write-Warning ("Tag " + $tagName + " already exists locally; skipping git tag.")
 } else {
-  git tag -a "v$Version" -m "Sync v$Version"
+  git tag -a $tagName -m ("Sync " + $tagName)
   if ($LASTEXITCODE -ne 0) { throw "git tag failed" }
-  Ok "Tagged v$Version"
+  Ok ("Tagged " + $tagName)
 }
 
-# ----- 5. Push branch + tag -----
+# --- 5. Push branch + tag ---
 if (-not $SkipPush) {
   Section "Pushing to GitHub"
   git push origin $branch
   if ($LASTEXITCODE -ne 0) { throw "git push branch failed" }
   Ok "Branch pushed."
 
-  git push origin "v$Version"
+  git push origin $tagName
   if ($LASTEXITCODE -ne 0) { throw "git push tag failed" }
   Ok "Tag pushed."
 }
 
-# ----- 6. Create GitHub release with the installer -----
+# --- 6. GitHub release ---
 if (-not $SkipRelease) {
   Section "Creating GitHub release"
 
   $ghAvailable = $false
   try {
     gh --version | Out-Null
-    $ghAvailable = $LASTEXITCODE -eq 0
-  } catch { $ghAvailable = $false }
+    $ghAvailable = ($LASTEXITCODE -eq 0)
+  } catch {
+    $ghAvailable = $false
+  }
 
   if (-not $ghAvailable) {
     Write-Warning "gh CLI is not available. Skipping the GitHub release step."
     Write-Host "    Install with: winget install GitHub.cli" -ForegroundColor Yellow
-    Write-Host "    Or create the release manually at:"
-    Write-Host "      https://github.com/1401917/sync-desktop/releases/new?tag=v$Version"
+    Write-Host ("    Or create the release manually at: https://github.com/1401917/sync-desktop/releases/new?tag=" + $tagName)
   } else {
-    $notes = "See [CHANGELOG.md](./CHANGELOG.md#0$($Version.Replace('.','')))-$($Version.Replace('.','')) for the full list of changes."
+    $notes = ("See CHANGELOG.md for the full list of changes in " + $tagName + ".")
 
     $assets = @()
     $exePath = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
@@ -161,14 +158,24 @@ if (-not $SkipRelease) {
       Select-Object -First 1 -ExpandProperty FullName
     if ($installerPath) { $assets += $installerPath }
 
-    $createArgs = @("release", "create", "v$Version", "--title", "Sync v$Version", "--notes", $notes)
+    $createArgs = @("release", "create", $tagName, "--title", ("Sync " + $tagName), "--notes", $notes)
     if ($assets.Count -gt 0) { $createArgs += $assets }
 
     & gh @createArgs
     if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
-    Ok "GitHub release v$Version created."
+    Ok ("GitHub release " + $tagName + " created.")
+  }
+}
+
+# --- 7. Optional launch ---
+if ($Launch) {
+  $exe = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
+  if (Test-Path $exe) {
+    Section "Launching new Sync build"
+    Start-Process -FilePath $exe
+    Ok ("Launched: " + $exe)
   }
 }
 
 Section "Done"
-Write-Host "Sync v$Version is released. Repo: $remote" -ForegroundColor Green
+Write-Host ("Sync " + $tagName + " is released. Repo: " + $remote) -ForegroundColor Green

@@ -12,7 +12,7 @@ import type {
   TaskStatus
 } from "../types/domain";
 
-function isTauriRuntime() {
+export function isTauriRuntime() {
   return Boolean(window.__TAURI_INTERNALS__);
 }
 
@@ -20,7 +20,6 @@ export async function bootstrapSync(): Promise<BootstrapPayload> {
   if (!isTauriRuntime()) {
     return demoPayload;
   }
-
   try {
     return await invoke<BootstrapPayload>("bootstrap");
   } catch (error) {
@@ -33,15 +32,11 @@ export async function openProjectFolder(root: string): Promise<ProjectOpenResult
   if (!isTauriRuntime()) {
     throw new Error("Project folders can only be opened in the Sync desktop app.");
   }
-
   return invoke<ProjectOpenResult>("open_project_folder", { root });
 }
 
 export async function listProjectFiles(projectId: string): Promise<ProjectFileEntry[]> {
-  if (!isTauriRuntime()) {
-    return [];
-  }
-
+  if (!isTauriRuntime()) return [];
   return invoke<ProjectFileEntry[]>("list_project_files", { projectId });
 }
 
@@ -60,7 +55,6 @@ export async function previewProjectFile(
       message: "File preview is available in the Sync desktop app."
     };
   }
-
   return invoke<FilePreview>("preview_project_file", { projectId, relativePath });
 }
 
@@ -69,10 +63,7 @@ export async function persistTaskStatus(
   status: TaskStatus,
   reason?: string
 ): Promise<TaskMutationResult | null> {
-  if (!isTauriRuntime()) {
-    return null;
-  }
-
+  if (!isTauriRuntime()) return null;
   return invoke<TaskMutationResult>("update_task_status", {
     taskId,
     status,
@@ -87,7 +78,6 @@ export async function saveProviderKeyMetadata(
   if (!isTauriRuntime()) {
     throw new Error("Provider key metadata can only be saved in the Sync desktop app.");
   }
-
   return invoke<ProviderSecretResult>("save_provider_key_metadata", { providerId, key });
 }
 
@@ -110,6 +100,5 @@ export async function submitAiPrompt(
       historyEvent: demoPayload.history[0]
     };
   }
-
   return invoke<AiSubmissionResult>("submit_ai_prompt", { prompt, history });
 }
