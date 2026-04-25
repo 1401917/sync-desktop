@@ -13,10 +13,21 @@ import {
   Settings,
   ShieldCheck
 } from "lucide-react";
-import type { BootstrapPayload, NavKey, ProjectSummary, SyncTask } from "../types/domain";
+import type {
+  BootstrapPayload,
+  ModelProviderSummary,
+  NavKey,
+  ProjectFileEntry,
+  ProjectSummary,
+  SyncTask
+} from "../types/domain";
 import { ConnectorsPanel } from "../features/integrations/ConnectorsPanel";
+import { FileExplorerPanel } from "../features/files/FileExplorerPanel";
 import { GitHubPanel } from "../features/integrations/GitHubPanel";
+import { HistoryPanel } from "../features/history/HistoryPanel";
 import { McpPanel } from "../features/integrations/McpPanel";
+import { ModelsPanel } from "../features/models/ModelsPanel";
+import { SecurityPanel } from "../features/security/SecurityPanel";
 import { SettingsPanel } from "../features/settings/SettingsPanel";
 
 const screenMeta: Record<NavKey, { title: string; subtitle: string; icon: typeof Bot }> = {
@@ -102,13 +113,17 @@ interface ScreenPlaceholderProps {
   payload: BootstrapPayload;
   selectedProject: ProjectSummary;
   tasks: SyncTask[];
+  projectFiles: ProjectFileEntry[];
+  onProviderUpdated: (provider: ModelProviderSummary) => void;
 }
 
 export function ScreenPlaceholder({
   activeView,
   payload,
   selectedProject,
-  tasks
+  tasks,
+  projectFiles,
+  onProviderUpdated
 }: ScreenPlaceholderProps) {
   const meta = screenMeta[activeView];
   const Icon = meta.icon;
@@ -125,8 +140,24 @@ export function ScreenPlaceholder({
     return <ConnectorsPanel payload={payload} />;
   }
 
+  if (activeView === "files") {
+    return <FileExplorerPanel project={selectedProject} files={projectFiles} />;
+  }
+
+  if (activeView === "permissions") {
+    return <SecurityPanel payload={payload} />;
+  }
+
+  if (activeView === "models") {
+    return <ModelsPanel payload={payload} onProviderUpdated={onProviderUpdated} />;
+  }
+
   if (activeView === "settings") {
     return <SettingsPanel payload={payload} />;
+  }
+
+  if (activeView === "history") {
+    return <HistoryPanel payload={payload} />;
   }
 
   return (

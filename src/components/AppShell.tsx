@@ -1,5 +1,14 @@
-import type { BootstrapPayload, NavKey, ProjectSummary, SyncTask } from "../types/domain";
+import type {
+  BootstrapPayload,
+  ModelProviderSummary,
+  NavKey,
+  ProjectFileEntry,
+  ProjectOpenResult,
+  ProjectSummary,
+  SyncTask
+} from "../types/domain";
 import { Sidebar } from "./Sidebar";
+import { TaskPanel } from "./TaskPanel";
 import { TopBar } from "./TopBar";
 import { WorkspaceCanvas } from "./WorkspaceCanvas";
 
@@ -8,9 +17,18 @@ interface AppShellProps {
   activeView: NavKey;
   selectedProject: ProjectSummary;
   tasks: SyncTask[];
+  projectFiles: ProjectFileEntry[];
   prompt: string;
+  hasActiveSession: boolean;
+  hasOpenedProject: boolean;
   onPromptChange: (value: string) => void;
   onNavigate: (view: NavKey) => void;
+  onProjectOpened: (result: ProjectOpenResult) => void;
+  onTasksGenerated: (tasks: SyncTask[]) => void;
+  onProviderUpdated: (provider: ModelProviderSummary) => void;
+  onIgnoreTask: (taskId: string) => void;
+  onRestoreTask: (taskId: string) => void;
+  onCompleteTask: (taskId: string) => void;
 }
 
 export function AppShell({
@@ -18,10 +36,25 @@ export function AppShell({
   activeView,
   selectedProject,
   tasks,
+  projectFiles,
   prompt,
+  hasActiveSession,
+  hasOpenedProject,
   onPromptChange,
-  onNavigate
+  onNavigate,
+  onProjectOpened,
+  onTasksGenerated,
+  onProviderUpdated,
+  onIgnoreTask,
+  onRestoreTask,
+  onCompleteTask
 }: AppShellProps) {
+  const showTaskPanel =
+    hasActiveSession &&
+    tasks.length > 0 &&
+    activeView !== "projects" &&
+    activeView !== "home";
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#141414] text-sync-text">
       <div className="flex h-full min-h-0 overflow-hidden rounded-[10px] border border-[#252525] bg-[#1b1b1b] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
@@ -31,15 +64,32 @@ export function AppShell({
             <Sidebar
               activeView={activeView}
               onNavigate={onNavigate}
+              projects={payload.recentProjects}
+              selectedProjectId={selectedProject?.id}
             />
-            <WorkspaceCanvas
-              activeView={activeView}
-              selectedProject={selectedProject}
-              payload={payload}
-              tasks={tasks}
-              prompt={prompt}
-              onPromptChange={onPromptChange}
-            />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <WorkspaceCanvas
+                activeView={activeView}
+                selectedProject={selectedProject}
+                payload={payload}
+                tasks={tasks}
+                projectFiles={projectFiles}
+                prompt={prompt}
+                hasOpenedProject={hasOpenedProject}
+                onPromptChange={onPromptChange}
+                onProjectOpened={onProjectOpened}
+                onTasksGenerated={onTasksGenerated}
+                onProviderUpdated={onProviderUpdated}
+              />
+              {showTaskPanel ? (
+                <TaskPanel
+                  tasks={tasks}
+                  onIgnoreTask={onIgnoreTask}
+                  onRestoreTask={onRestoreTask}
+                  onCompleteTask={onCompleteTask}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

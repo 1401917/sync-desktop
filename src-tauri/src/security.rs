@@ -39,7 +39,8 @@ pub fn classify_action(action: &str, target: &str, tool: &str) -> ActionClassifi
         required_permission: permission_for_risk(&risk).to_string(),
         reason: reason_for_risk(&risk).to_string(),
         potential_impact: impact_for_risk(&risk).to_string(),
-        sensitive_data_involved: contains_secret_like_value(target) || is_sensitive_path(Path::new(target)),
+        sensitive_data_involved: contains_secret_like_value(target)
+            || is_sensitive_path(Path::new(target)),
         approval_required,
         rollback_available: action != "run_command",
         recommended_decision: if approval_required {
@@ -86,7 +87,10 @@ pub fn classify_command(command: &str) -> String {
         "git rebase",
         "git remote set-url",
     ];
-    if high_patterns.iter().any(|pattern| normalized.contains(pattern)) {
+    if high_patterns
+        .iter()
+        .any(|pattern| normalized.contains(pattern))
+    {
         return "High".to_string();
     }
 

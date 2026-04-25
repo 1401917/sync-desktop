@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use walkdir::{DirEntry, WalkDir};
 
-use crate::models::{FileScanItem, ProjectScan};
+use crate::models::{FileScanItem, ProjectFileEntry, ProjectScan};
 use crate::security;
 
 const MAX_SCAN_ITEMS: usize = 800;
@@ -35,13 +35,7 @@ pub fn scan_project_folder(root: String) -> Result<ProjectScan, String> {
     let mut package_managers = BTreeSet::new();
     let mut skipped = Vec::new();
 
-    for entry in WalkDir::new(&canonical_root)
-        .follow_links(false)
-        .into_iter()
-        .filter_entry(should_enter)
-        .filter_map(Result::ok)
-        .take(MAX_SCAN_ITEMS)
-    {
+    for entry in walk_project_entries(&canonical_root) {
         if entry.file_type().is_dir() {
             directories_scanned += 1;
             continue;
@@ -95,6 +89,70 @@ pub fn scan_project_folder(root: String) -> Result<ProjectScan, String> {
         package_managers: package_managers.into_iter().collect(),
         skipped,
     })
+}
+
+pub fn collect_project_files(root: &Path) -> Result<Vec<ProjectFileEntry>, String> {
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|error| format!("Unable to resolve selected project folder: {error}"))?;
+
+    let mut files = Vec::new();
+    for entry in walk_project_entries(&canonical_root) {
+        if entry.file_type().is_dir() {
+            continue;
+        }
+
+        let path = entry.path();
+        let metadata = entry.metadata().ok();
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_string();
+        let file_name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_string();
+        let relative_path = path
+            .strip_prefix(&canonical_root)
+            .unwrap_or(path)
+            .display()
+            .to_string();
+
+        files.push(ProjectFileEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: None,
+            path: path.display().to_string(),
+            relative_path,
+            file_name,
+            extension: extension.clone(),
+            size: metadata
+                .as_ref()
+                .map(|value| value.len())
+                .unwrap_or_default(),
+            language: language_for_extension(&extension)
+                .unwrap_or("Plain Text")
+                .to_string(),
+            sensitive: security::is_sensitive_path(path),
+            binary: is_likely_binary(path),
+            modified_at: metadata
+                .and_then(|value| value.modified().ok())
+                .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|value| value.as_secs().to_string()),
+        });
+    }
+
+    Ok(files)
+}
+
+fn walk_project_entries(root: &Path) -> impl Iterator<Item = DirEntry> + '_ {
+    WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(should_enter)
+        .filter_map(Result::ok)
+        .take(MAX_SCAN_ITEMS)
 }
 
 fn should_enter(entry: &DirEntry) -> bool {

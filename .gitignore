@@ -16,3 +16,9 @@ test-results/
 .env
 .env.*
 !.env.example
+
+# Local-only secrets / Cargo env injection (NEVER commit)
+src-tauri/.cargo/config.toml
+src-tauri/.cargo/
+*.key
+secrets.local.*

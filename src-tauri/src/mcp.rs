@@ -1,5 +1,5 @@
-use crate::models::McpServerSummary;
 use crate::models::McpConnectionTest;
+use crate::models::McpServerSummary;
 
 #[allow(dead_code)]
 pub fn default_servers() -> Vec<McpServerSummary> {
@@ -60,9 +60,13 @@ fn test_command(target: String) -> McpConnectionTest {
         .to_string();
 
     let output = if cfg!(windows) {
-        std::process::Command::new("where.exe").arg(&executable).output()
+        std::process::Command::new("where.exe")
+            .arg(&executable)
+            .output()
     } else {
-        std::process::Command::new("which").arg(&executable).output()
+        std::process::Command::new("which")
+            .arg(&executable)
+            .output()
     };
 
     match output {

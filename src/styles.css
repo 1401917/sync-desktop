@@ -86,6 +86,10 @@ input:focus-visible {
     @apply h-8 rounded-xl border border-[#243041] px-3 text-[12px] text-sync-secondary transition hover:bg-sync-hover hover:text-sync-text;
   }
 
+  .task-action {
+    @apply h-7 rounded-md border border-[#2d2d2d] bg-[#222] px-2.5 text-[11px] font-medium text-[#bdbdbd] transition hover:bg-[#2a2a2a] hover:text-[#ededed];
+  }
+
   .app-menu-button {
     @apply h-[24px] rounded-md px-2 text-[12px] font-medium text-[#8f8f8f] transition hover:bg-[#262626] hover:text-[#e8e8e8];
   }

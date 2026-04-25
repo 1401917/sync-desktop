@@ -14,6 +14,8 @@ pub struct BootstrapPayload {
     pub connectors: Vec<ConnectorSummary>,
     pub mcp_servers: Vec<McpServerSummary>,
     pub history: Vec<HistorySummary>,
+    pub model_providers: Vec<ModelProviderSummary>,
+    pub model_profiles: Vec<ModelProfileSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,4 +170,98 @@ pub struct GitHubLoginResult {
     pub started: bool,
     pub status: String,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelProviderSummary {
+    pub id: String,
+    pub name: String,
+    pub provider_type: String,
+    pub base_url: Option<String>,
+    pub connection_status: String,
+    pub configured: bool,
+    pub masked_key_preview: Option<String>,
+    pub enabled: bool,
+    pub last_tested_at: Option<String>,
+    pub error_state: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelProfileSummary {
+    pub id: String,
+    pub name: String,
+    pub provider_id: Option<String>,
+    pub model_id: String,
+    pub role: String,
+    pub max_context: Option<i64>,
+    pub temperature: Option<f64>,
+    pub streaming_enabled: bool,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectOpenResult {
+    pub project: ProjectSummary,
+    pub scan: ProjectScan,
+    pub files: Vec<ProjectFileEntry>,
+    pub history_event: HistorySummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFileEntry {
+    pub id: String,
+    pub project_id: Option<String>,
+    pub path: String,
+    pub relative_path: String,
+    pub file_name: String,
+    pub extension: String,
+    pub size: u64,
+    pub language: String,
+    pub sensitive: bool,
+    pub binary: bool,
+    pub modified_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilePreview {
+    pub path: String,
+    pub relative_path: String,
+    pub language: String,
+    pub sensitive: bool,
+    pub binary: bool,
+    pub content: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskMutationResult {
+    pub task: TaskSummary,
+    pub history_event: HistorySummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSecretResult {
+    pub provider: ModelProviderSummary,
+    pub audit_event: HistorySummary,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSubmissionResult {
+    pub session_id: String,
+    pub user_message_id: String,
+    pub assistant_message_id: String,
+    pub task_list_id: Option<String>,
+    pub tasks: Vec<TaskSummary>,
+    pub assistant_message: String,
+    pub provider_status: String,
+    pub history_event: HistorySummary,
 }

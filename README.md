@@ -1,6 +1,7 @@
 # Sync Desktop
 
 [![Sync CI](https://github.com/1401917/sync-desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/1401917/sync-desktop/actions/workflows/ci.yml)
+![version](https://img.shields.io/badge/version-0.3.0-success)
 
 Sync is a Windows desktop AI coding workspace built with Tauri, Rust, React, TypeScript, Tailwind CSS, and SQLite.
 
@@ -161,13 +162,18 @@ Sync is designed around explicit user control:
 - Mask secrets in logs and exports
 - Keep history and audit records
 
-## Roadmap
+## Releasing
 
-- Full GitHub OAuth app flow
-- Secure credential storage for provider and connector tokens
-- Full diff review and patch application UI
-- Git commit/push approval flow
-- MCP server registry and tool schemas
-- Real connector OAuth flows
-- AI provider streaming and task orchestration
-- Installer packaging and signed releases
+Release everything (commit, tag, build, push, GitHub release) in one step:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\release.ps1
+```
+
+To bump to a different version:
+
+```powershell
+.\release.ps1 -Version 0.2.1
+```
+
+The script verifies that `sr

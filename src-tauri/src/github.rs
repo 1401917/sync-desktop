@@ -27,8 +27,7 @@ fn stored_token() -> Option<String> {
 fn save_token(token: &str) -> Result<(), String> {
     let path = token_path();
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create token dir: {e}"))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create token dir: {e}"))?;
     }
     std::fs::write(&path, token).map_err(|e| format!("Failed to save token: {e}"))
 }
@@ -57,14 +56,103 @@ struct TokenResponse {
 }
 
 fn request_device_code(client_id: &str) -> Result<DeviceCodeResponse, String> {
-    client()
+    let response = client()
         .post("https://github.com/login/device/code")
         .header("Accept", "application/json")
         .form(&[("client_id", client_id), ("scope", "repo user")])
         .send()
-        .map_err(|error| format!("GitHub device-code request failed: {error}"))?
-        .json::<DeviceCodeResponse>()
+        .map_err(|error| format!("GitHub device-code request failed: {error}"))?;
+
+    let status = response.status();
+    let body = response
+        .text()
+        .map_err(|error| format!("GitHub device-code response read failed: {error}"))?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "GitHub rejected the device-code request (HTTP {}): {}. \
+             Set SYNC_GITHUB_CLIENT_ID to a valid GitHub OAuth App client ID \
+             with Device Flow enabled.",
+            status.as_u16(),
+            truncate(&body, 240)
+        ));
+    }
+
+    // GitHub's form-encoded error responses come back as `error=...&...` even
+    // when we asked for JSON. Detect those and surface them clearly.
+    let trimmed = body.trim_start();
+    if !trimmed.starts_with('{') {
+        if let Some(error_message) = parse_form_error(&body) {
+            return Err(format!(
+                "GitHub device-code request was rejected: {error_message}. \
+                 Set SYNC_GITHUB_CLIENT_ID to a valid GitHub OAuth App client ID."
+            ));
+        }
+        return Err(format!(
+            "GitHub device-code response was not JSON: {}",
+            truncate(&body, 240)
+        ));
+    }
+
+    serde_json::from_str::<DeviceCodeResponse>(&body)
         .map_err(|error| format!("GitHub device-code response could not be parsed: {error}"))
+}
+
+fn parse_form_error(body: &str) -> Option<String> {
+    let mut error_kind: Option<String> = None;
+    let mut description: Option<String> = None;
+    for pair in body.split('&') {
+        let mut parts = pair.splitn(2, '=');
+        let key = parts.next()?.trim();
+        let value = parts.next().unwrap_or("").trim();
+        let decoded = urldecode(value);
+        match key {
+            "error" => error_kind = Some(decoded),
+            "error_description" => description = Some(decoded),
+            _ => {}
+        }
+    }
+    match (error_kind, description) {
+        (Some(kind), Some(desc)) => Some(format!("{kind} — {desc}")),
+        (Some(kind), None) => Some(kind),
+        (None, Some(desc)) => Some(desc),
+        _ => None,
+    }
+}
+
+fn urldecode(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let bytes = value.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if byte == b'+' {
+            out.push(' ');
+            i += 1;
+        } else if byte == b'%' && i + 2 < bytes.len() {
+            if let Ok(code) =
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+            {
+                out.push(code as char);
+                i += 3;
+                continue;
+            }
+            out.push(byte as char);
+            i += 1;
+        } else {
+            out.push(byte as char);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn truncate(value: &str, max: usize) -> String {
+    if value.len() <= max {
+        value.to_string()
+    } else {
+        format!("{}…", &value[..max])
+    }
 }
 
 pub fn start_oauth() -> GitHubLoginResult {
@@ -98,10 +186,7 @@ pub fn start_oauth() -> GitHubLoginResult {
                 .form(&[
                     ("client_id", client_id.as_str()),
                     ("device_code", device_code.as_str()),
-                    (
-                        "grant_type",
-                        "urn:ietf:params:oauth:grant-type:device_code",
-                    ),
+                    ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
                 ])
                 .send()
                 .and_then(|response| response.json::<TokenResponse>());
@@ -131,7 +216,9 @@ pub fn start_oauth() -> GitHubLoginResult {
     GitHubLoginResult {
         started: true,
         status: verification_uri,
-        message: format!("Enter code {user_code} on GitHub. Sync will detect the authorization automatically."),
+        message: format!(
+            "Enter code {user_code} on GitHub. Sync will detect the authorization automatically."
+        ),
     }
 }
 
@@ -155,9 +242,8 @@ pub fn connection_status() -> GitHubConnectionStatus {
             connected: false,
             status: "Requires authentication".to_string(),
             username: None,
-            message:
-                "Login with GitHub CLI or set GITHUB_TOKEN/GH_TOKEN before launching Sync."
-                    .to_string(),
+            message: "Login with GitHub CLI or set GITHUB_TOKEN/GH_TOKEN before launching Sync."
+                .to_string(),
         };
     };
 

@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager};
 use crate::history;
 use crate::models::{
     AgentSummary, BootstrapPayload, ConnectorSummary, HistorySummary, McpServerSummary,
-    PermissionSummary, ProjectSummary, TaskSummary,
+    ModelProfileSummary, ModelProviderSummary, PermissionSummary, ProjectSummary, TaskSummary,
 };
 
 pub struct SyncDatabase {
@@ -16,7 +16,14 @@ pub struct SyncDatabase {
 
 const MIGRATIONS: &[(&str, &str)] = &[
     ("001_core", include_str!("../migrations/001_core.sql")),
-    ("002_seed_defaults", include_str!("../migrations/002_seed_defaults.sql")),
+    (
+        "002_seed_defaults",
+        include_str!("../migrations/002_seed_defaults.sql"),
+    ),
+    (
+        "003_phase1_5_foundation",
+        include_str!("../migrations/003_phase1_5_foundation.sql"),
+    ),
 ];
 
 pub fn initialize(app: &AppHandle) -> Result<SyncDatabase, String> {
@@ -116,6 +123,8 @@ pub fn bootstrap_payload(database: &SyncDatabase) -> Result<BootstrapPayload, St
         connectors: load_connectors(&connection)?,
         mcp_servers: load_mcp_servers(&connection)?,
         history: load_history(&connection)?,
+        model_providers: load_model_providers(&connection)?,
+        model_profiles: load_model_profiles(&connection)?,
     })
 }
 
@@ -314,6 +323,63 @@ fn load_history(connection: &Connection) -> Result<Vec<HistorySummary>, String> 
             })
         })
         .map_err(|error| format!("Unable to load history: {error}"))?;
+
+    collect_rows(rows)
+}
+
+fn load_model_providers(connection: &Connection) -> Result<Vec<ModelProviderSummary>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, name, provider_type, base_url, connection_status, configured,
+                    masked_key_preview, enabled, last_tested_at, error_state
+             FROM model_providers
+             ORDER BY name",
+        )
+        .map_err(|error| format!("Unable to prepare model provider query: {error}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ModelProviderSummary {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                provider_type: row.get(2)?,
+                base_url: row.get(3)?,
+                connection_status: row.get(4)?,
+                configured: row.get::<_, i64>(5)? == 1,
+                masked_key_preview: row.get(6)?,
+                enabled: row.get::<_, i64>(7)? == 1,
+                last_tested_at: row.get(8)?,
+                error_state: row.get(9)?,
+            })
+        })
+        .map_err(|error| format!("Unable to load model providers: {error}"))?;
+
+    collect_rows(rows)
+}
+
+fn load_model_profiles(connection: &Connection) -> Result<Vec<ModelProfileSummary>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, name, provider_id, model_id, role, max_context, temperature,
+                    streaming_enabled, enabled
+             FROM model_profiles
+             ORDER BY role, name",
+        )
+        .map_err(|error| format!("Unable to prepare model profile query: {error}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ModelProfileSummary {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                provider_id: row.get(2)?,
+                model_id: row.get(3)?,
+                role: row.get(4)?,
+                max_context: row.get(5)?,
+                temperature: row.get(6)?,
+                streaming_enabled: row.get::<_, i64>(7)? == 1,
+                enabled: row.get::<_, i64>(8)? == 1,
+            })
+        })
+        .map_err(|error| format!("Unable to load model profiles: {error}"))?;
 
     collect_rows(rows)
 }

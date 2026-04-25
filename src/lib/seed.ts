@@ -161,5 +161,94 @@ export const demoPayload: BootstrapPayload = {
       status: "Active",
       timestamp: "Just now"
     }
+  ],
+  modelProviders: [
+    {
+      id: "openai",
+      name: "OpenAI",
+      providerType: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      connectionStatus: "Requires authentication",
+      configured: false,
+      enabled: false
+    },
+    {
+      id: "openrouter",
+      name: "OpenRouter",
+      providerType: "openrouter",
+      baseUrl: "https://openrouter.ai/api/v1",
+      connectionStatus: "Requires authentication",
+      configured: false,
+      enabled: false
+    },
+    {
+      id: "anthropic",
+      name: "Anthropic",
+      providerType: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      connectionStatus: "Requires authentication",
+      configured: false,
+      enabled: false
+    },
+    {
+      id: "gemini",
+      name: "Google Gemini",
+      providerType: "gemini",
+      baseUrl: "https://generativelanguage.googleapis.com",
+      connectionStatus: "Requires authentication",
+      configured: false,
+      enabled: false
+    },
+    {
+      id: "nvidia",
+      name: "NVIDIA NIM / AI Endpoints",
+      providerType: "nvidia",
+      baseUrl: "https://integrate.api.nvidia.com/v1",
+      connectionStatus: "Requires authentication",
+      configured: false,
+      enabled: false
+    },
+    {
+      id: "ollama",
+      name: "Ollama",
+      providerType: "ollama",
+      baseUrl: "http://localhost:11434",
+      connectionStatus: "Not tested",
+      configured: false,
+      enabled: false
+    },
+    {
+      id: "custom-openai-compatible",
+      name: "Custom OpenAI-Compatible",
+      providerType: "openai-compatible",
+      baseUrl: "",
+      connectionStatus: "Not configured",
+      configured: false,
+      enabled: false
+    }
+  ],
+  modelProfiles: [
+    {
+      id: "default-model",
+      name: "Default Model",
+      providerId: "openai",
+      modelId: "configure-provider-first",
+      role: "default",
+      maxContext: 128000,
+      temperature: 0.2,
+      streamingEnabled: true,
+      enabled: false
+    },
+    {
+      id: "nvidia-default",
+      name: "NVIDIA Default",
+      providerId: "nvidia",
+      modelId: "configure-nvidia-model",
+      role: "default",
+      maxContext: 128000,
+      temperature: 0.2,
+      streamingEnabled: true,
+      enabled: false
+    }
   ]
 };

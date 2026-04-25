@@ -113,6 +113,8 @@ export interface BootstrapPayload {
   connectors: ConnectorSummary[];
   mcpServers: McpServerSummary[];
   history: HistorySummary[];
+  modelProviders: ModelProviderSummary[];
+  modelProfiles: ModelProfileSummary[];
 }
 
 export interface GitHubConnectionStatus {
@@ -141,4 +143,101 @@ export interface GitHubLoginResult {
   started: boolean;
   status: string;
   message: string;
+}
+
+export interface ModelProviderSummary {
+  id: string;
+  name: string;
+  providerType: string;
+  baseUrl?: string | null;
+  connectionStatus: "Connected" | "Not Connected" | "Requires authentication" | "Not configured" | "Not tested" | "Error" | "Disabled";
+  configured: boolean;
+  maskedKeyPreview?: string | null;
+  enabled: boolean;
+  lastTestedAt?: string | null;
+  errorState?: string | null;
+}
+
+export interface ModelProfileSummary {
+  id: string;
+  name: string;
+  providerId?: string | null;
+  modelId: string;
+  role: string;
+  maxContext?: number | null;
+  temperature?: number | null;
+  streamingEnabled: boolean;
+  enabled: boolean;
+}
+
+export interface ProjectFileEntry {
+  id: string;
+  projectId?: string | null;
+  path: string;
+  relativePath: string;
+  fileName: string;
+  extension: string;
+  size: number;
+  language: string;
+  sensitive: boolean;
+  binary: boolean;
+  modifiedAt?: string | null;
+}
+
+export interface ProjectScan {
+  root: string;
+  filesScanned: number;
+  directoriesScanned: number;
+  sensitiveFiles: FileScanItem[];
+  languages: string[];
+  packageManagers: string[];
+  skipped: string[];
+}
+
+export interface FileScanItem {
+  path: string;
+  relativePath: string;
+  size: number;
+  extension: string;
+  sensitive: boolean;
+  binary: boolean;
+}
+
+export interface ProjectOpenResult {
+  project: ProjectSummary;
+  scan: ProjectScan;
+  files: ProjectFileEntry[];
+  historyEvent: HistorySummary;
+}
+
+export interface FilePreview {
+  path: string;
+  relativePath: string;
+  language: string;
+  sensitive: boolean;
+  binary: boolean;
+  content?: string | null;
+  message: string;
+}
+
+export interface TaskMutationResult {
+  task: SyncTask;
+  historyEvent: HistorySummary;
+}
+
+export interface ProviderSecretResult {
+  provider: ModelProviderSummary;
+  auditEvent: HistorySummary;
+  message: string;
+}
+
+export interface AiSubmissionResult {
+  sessionId: string;
+  userMessageId: string;
+  assistantMessageId: string;
+  taskListId?: string | null;
+  tasks: SyncTask[];
+  assistantMessage: string;
+  providerStatus: string;
+  historyEvent: HistorySummary;
 }

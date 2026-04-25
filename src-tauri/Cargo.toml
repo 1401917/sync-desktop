@@ -1,6 +1,6 @@
 [package]
 name = "sync"
-version = "0.1.0"
+version = "0.3.0"
 description = "Sync desktop AI coding workspace"
 authors = ["Sync"]
 edition = "2021"
@@ -20,9 +20,26 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 uuid = { version = "1", features = ["serde", "v4"] }
 walkdir = "2"
 
 [dev-dependencies]
 tempfile = "3"
+
+# Faster release builds: skip LTO, more parallel codegen units.
+# Final binary is ~10-20% bigger but builds 2-4x faster.
+[profile.release]
+opt-level = 2
+lto = false
+codegen-units = 16
+incremental = true
+strip = false
+debug = false
+
+# Even faster intermediate builds for iterating on UI.
+[profile.dev]
+opt-level = 0
+debug = 1
+incremental = true
