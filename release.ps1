@@ -90,6 +90,17 @@ if (-not $changes) {
 
 # --- 3. Build the Windows release ---
 if (-not $SkipBuild) {
+  Section "Closing any running Sync instance"
+  $running = Get-Process -Name "sync" -ErrorAction SilentlyContinue
+  if ($running) {
+    Write-Host ("    Found " + $running.Count + " running sync process(es); stopping...") -ForegroundColor Yellow
+    $running | Stop-Process -Force
+    Start-Sleep -Seconds 2
+    Ok "Stopped."
+  } else {
+    Ok "No running sync.exe."
+  }
+
   Section "Building Tauri release (this can take a few minutes)"
   npm run tauri:build
   if ($LASTEXITCODE -ne 0) { throw "Tauri build failed." }
