@@ -54,6 +54,10 @@ async function openTauriWindow(id: string) {
 
 interface TopBarProps {
   payload: BootstrapPayload;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
 }
 
 interface MenuEntry {
@@ -66,7 +70,7 @@ interface MenuEntry {
 
 const updateAvailable = true;
 
-export function TopBar({ payload }: TopBarProps) {
+export function TopBar({ payload, canGoBack, canGoForward, onBack, onForward }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -137,14 +141,8 @@ export function TopBar({ payload }: TopBarProps) {
       { label: "New Window", shortcut: "Ctrl+Shift+N", onSelect: openNewWindow }
     ],
     Help: [
-      {
-        label: "Open Documentation",
-        onSelect: () => { window.open("https://github.com/1401917/sync-desktop", "_blank"); }
-      },
-      {
-        label: "Report Issue",
-        onSelect: () => { window.open("https://github.com/1401917/sync-desktop/issues/new", "_blank"); }
-      },
+      { label: "Open Documentation", onSelect: () => { window.open("https://github.com/1401917/sync-desktop", "_blank"); } },
+      { label: "Report Issue", onSelect: () => { window.open("https://github.com/1401917/sync-desktop/issues/new", "_blank"); } },
       { separator: true, label: "" },
       { label: `About ${payload.appName}`, disabled: true }
     ]
@@ -171,8 +169,26 @@ export function TopBar({ payload }: TopBarProps) {
     >
       <div data-tauri-drag-region className="flex min-w-0 flex-1 items-center gap-1.5">
         <button data-no-drag="true" className="titlebar-button" aria-label="Toggle sidebar"><PanelLeft size={13} /></button>
-        <button data-no-drag="true" className="titlebar-button" aria-label="Back"><ArrowLeft size={13} /></button>
-        <button data-no-drag="true" className="titlebar-button" aria-label="Forward"><ArrowRight size={13} /></button>
+        <button
+          data-no-drag="true"
+          className="titlebar-button disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent"
+          aria-label="Back"
+          title="Back"
+          onClick={onBack}
+          disabled={!canGoBack}
+        >
+          <ArrowLeft size={13} />
+        </button>
+        <button
+          data-no-drag="true"
+          className="titlebar-button disabled:opacity-30 disabled:cursor-default disabled:hover:bg-transparent"
+          aria-label="Forward"
+          title="Forward"
+          onClick={onForward}
+          disabled={!canGoForward}
+        >
+          <ArrowRight size={13} />
+        </button>
         <div data-tauri-drag-region className="ml-1 flex items-center gap-2">
           <div className="grid h-[18px] w-[18px] place-items-center rounded-full border border-[#353535] bg-[#242424]">
             <div className="h-2 w-2 rounded-full bg-[#cfcfcf]" />

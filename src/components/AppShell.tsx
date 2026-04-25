@@ -21,8 +21,12 @@ interface AppShellProps {
   prompt: string;
   hasActiveSession: boolean;
   hasOpenedProject: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
   onPromptChange: (value: string) => void;
   onNavigate: (view: NavKey) => void;
+  onBack: () => void;
+  onForward: () => void;
   onProjectOpened: (result: ProjectOpenResult) => void;
   onTasksGenerated: (tasks: SyncTask[]) => void;
   onProviderUpdated: (provider: ModelProviderSummary) => void;
@@ -40,8 +44,12 @@ export function AppShell({
   prompt,
   hasActiveSession,
   hasOpenedProject,
+  canGoBack,
+  canGoForward,
   onPromptChange,
   onNavigate,
+  onBack,
+  onForward,
   onProjectOpened,
   onTasksGenerated,
   onProviderUpdated,
@@ -49,17 +57,24 @@ export function AppShell({
   onRestoreTask,
   onCompleteTask
 }: AppShellProps) {
+  // Tasks live alongside the chat, so the panel only makes sense on the
+  // session view, not on Plugins, MCP, GitHub, History, etc.
   const showTaskPanel =
     hasActiveSession &&
     tasks.length > 0 &&
-    activeView !== "projects" &&
-    activeView !== "home";
+    (activeView === "session" || activeView === "tasks");
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#141414] text-sync-text">
       <div className="flex h-full min-h-0 overflow-hidden rounded-[10px] border border-[#252525] bg-[#1b1b1b] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar payload={payload} />
+          <TopBar
+            payload={payload}
+            canGoBack={canGoBack}
+            canGoForward={canGoForward}
+            onBack={onBack}
+            onForward={onForward}
+          />
           <div className="flex min-h-0 flex-1 bg-[#171717]">
             <Sidebar
               activeView={activeView}

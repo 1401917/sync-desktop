@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { demoPayload } from "./seed";
 import type {
   AiSubmissionResult,
+  LoadedChat,
   BootstrapPayload,
   FilePreview,
   ProjectFileEntry,
@@ -71,6 +72,13 @@ export async function persistTaskStatus(
   });
 }
 
+export async function writeTextFileAtPath(path: string, content: string): Promise<string> {
+  if (!isTauriRuntime()) {
+    throw new Error("Saving files is only available in the Sync desktop app.");
+  }
+  return invoke<string>("write_text_file_at_path", { path, content });
+}
+
 export async function saveProviderKeyMetadata(
   providerId: string,
   key: string
@@ -85,7 +93,8 @@ export type ChatHistoryEntry = ["user" | "assistant", string];
 
 export async function submitAiPrompt(
   prompt: string,
-  history: ChatHistoryEntry[] = []
+  history: ChatHistoryEntry[] = [],
+  projectId?: string | null
 ): Promise<AiSubmissionResult> {
   if (!isTauriRuntime()) {
     return {
@@ -100,5 +109,16 @@ export async function submitAiPrompt(
       historyEvent: demoPayload.history[0]
     };
   }
-  return invoke<AiSubmissionResult>("submit_ai_prompt", { prompt, history });
+  return invoke<AiSubmissionResult>("submit_ai_prompt", {
+    prompt,
+    history,
+    projectId: projectId ?? null
+  });
+}
+
+export async function loadLatestChat(): Promise<LoadedChat | null> {
+  if (!isTauriRuntime()) {
+    return null;
+  }
+  return invoke<LoadedChat | null>("load_latest_chat");
 }

@@ -15,11 +15,12 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use models::{
-    ActionClassification, AiSubmissionResult, BootstrapPayload, FilePreview,
-    GitHubConnectionStatus, GitHubLoginResult, GitHubRepositorySummary, McpConnectionTest,
-    ProjectFileEntry, ProjectOpenResult, ProjectScan, ProviderSecretResult, TaskMutationResult,
+    ActionClassification, AiJobUpdate, AiSubmissionResult, BootstrapPayload, FilePreview,
+    GitHubConnectionStatus, GitHubLoginResult, GitHubRepositorySummary, LoadedChat,
+    McpConnectionTest, ProjectFileEntry, ProjectOpenResult, ProjectScan, ProviderSecretResult,
+    TaskMutationResult,
 };
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_opener::OpenerExt;
 
 #[derive(Default)]
@@ -44,6 +45,41 @@ fn bootstrap(app: AppHandle, state: State<'_, AppState>) -> Result<BootstrapPayl
 #[tauri::command]
 fn classify_command(command: String) -> ActionClassification {
     security::classify_action("run_command", &command, "Terminal")
+}
+
+/// Write a UTF-8 text file. The path is whatever the user picked from the
+/// system save dialog, so we trust it but still refuse system-critical
+/// directories. Used by the "Save to file" action on chat code blocks.
+#[tauri::command]
+async fn write_text_file_at_path(path: String, content: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let lower = path.to_lowercase();
+        let blocked_prefixes = [
+            "c:\\windows",
+            "c:\\program files",
+            "c:\\program files (x86)",
+            "c:\\programdata\\microsoft",
+        ];
+        if blocked_prefixes
+            .iter()
+            .any(|prefix| lower.starts_with(prefix))
+        {
+            return Err(format!(
+                "Refusing to write into protected system path: {path}"
+            ));
+        }
+
+        let target = std::path::PathBuf::from(&path);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| format!("Unable to create parent directory: {error}"))?;
+        }
+        std::fs::write(&target, content.as_bytes())
+            .map_err(|error| format!("Unable to write file: {error}"))?;
+        Ok(path)
+    })
+    .await
+    .map_err(|error| format!("write_text_file_at_path join error: {error}"))?
 }
 
 #[tauri::command]
@@ -118,21 +154,64 @@ async fn save_provider_key_metadata(
 
 #[tauri::command]
 async fn submit_ai_prompt(
+    app: AppHandle,
     state: State<'_, AppState>,
     prompt: String,
     history: Option<Vec<(String, String)>>,
+    project_id: Option<String>,
 ) -> Result<AiSubmissionResult, String> {
     let database_path = active_database_path(&state)?;
     let history = history.unwrap_or_default();
-    // submit_prompt does network I/O (the OpenAI-compatible chat completion)
-    // plus SQLite writes. Without spawn_blocking the call would block the
-    // WebView main thread for seconds and Windows would mark the app as
-    // "Not Responding" — exactly what was happening before.
-    tauri::async_runtime::spawn_blocking(move || {
-        workspace::submit_prompt(&database_path, prompt, history)
+    let prompt_for_job = prompt.clone();
+    let project_for_job = project_id.clone();
+    let started = tauri::async_runtime::spawn_blocking({
+        let database_path = database_path.clone();
+        move || workspace::start_prompt_job(&database_path, prompt, project_id)
     })
     .await
-    .map_err(|error| format!("submit_ai_prompt join error: {error}"))?
+    .map_err(|error| format!("submit_ai_prompt start join error: {error}"))??;
+
+    let update_session_id = started.session_id.clone();
+    let update_message_id = started.assistant_message_id.clone();
+    let started_for_event = started.clone();
+    tauri::async_runtime::spawn(async move {
+        let result: Result<AiJobUpdate, String> = tauri::async_runtime::spawn_blocking(move || {
+            workspace::complete_prompt_job(
+                &database_path,
+                update_session_id,
+                update_message_id,
+                prompt_for_job,
+                history,
+                project_for_job,
+            )
+        })
+        .await
+        .map_err(|error| format!("submit_ai_prompt completion join error: {error}"))
+        .and_then(|value| value);
+
+        let payload = match result {
+            Ok(update) => update,
+            Err(error) => AiJobUpdate {
+                session_id: started_for_event.session_id.clone(),
+                assistant_message_id: started_for_event.assistant_message_id.clone(),
+                status: "error".to_string(),
+                assistant_message: format!("Sync background job failed: {error}"),
+                provider_status: "Error".to_string(),
+                error_message: Some(error),
+                applied_files: Vec::new(),
+                tasks: started_for_event.tasks.clone(),
+            },
+        };
+        let _ = app.emit("sync://ai-job-updated", payload);
+    });
+
+    Ok(started)
+}
+
+#[tauri::command]
+fn load_latest_chat(state: State<'_, AppState>) -> Result<Option<LoadedChat>, String> {
+    let database_path = active_database_path(&state)?;
+    workspace::load_latest_chat(&database_path)
 }
 
 #[tauri::command]
@@ -184,6 +263,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             bootstrap,
             classify_command,
+            write_text_file_at_path,
             mask_secret_preview,
             scan_project_folder,
             git_status,
@@ -193,6 +273,7 @@ pub fn run() {
             update_task_status,
             save_provider_key_metadata,
             submit_ai_prompt,
+            load_latest_chat,
             github_connection_status,
             github_list_repositories,
             github_login_with_cli,

@@ -265,3 +265,36 @@ pub struct AiSubmissionResult {
     pub provider_status: String,
     pub history_event: HistorySummary,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatMessageSummary {
+    pub id: String,
+    pub session_id: String,
+    pub role: String,
+    pub content: String,
+    pub status: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadedChat {
+    pub session_id: String,
+    pub title: String,
+    pub messages: Vec<ChatMessageSummary>,
+    pub tasks: Vec<TaskSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiJobUpdate {
+    pub session_id: String,
+    pub assistant_message_id: String,
+    pub status: String,
+    pub assistant_message: String,
+    pub provider_status: String,
+    pub error_message: Option<String>,
+    pub applied_files: Vec<String>,
+    pub tasks: Vec<TaskSummary>,
+}

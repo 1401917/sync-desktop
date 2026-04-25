@@ -241,3 +241,30 @@ export interface AiSubmissionResult {
   providerStatus: string;
   historyEvent: HistorySummary;
 }
+
+export interface ChatMessageSummary {
+  id: string;
+  sessionId: string;
+  role: "user" | "assistant" | string;
+  content: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface LoadedChat {
+  sessionId: string;
+  title: string;
+  messages: ChatMessageSummary[];
+  tasks: SyncTask[];
+}
+
+export interface AiJobUpdate {
+  sessionId: string;
+  assistantMessageId: string;
+  status: "ok" | "error" | string;
+  assistantMessage: string;
+  providerStatus: string;
+  errorMessage?: string | null;
+  appliedFiles: string[];
+  tasks: SyncTask[];
+}

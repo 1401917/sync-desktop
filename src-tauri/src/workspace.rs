@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use uuid::Uuid;
@@ -7,8 +7,9 @@ use uuid::Uuid;
 use crate::filesystem;
 use crate::history;
 use crate::models::{
-    AiSubmissionResult, FilePreview, ModelProviderSummary, ProjectFileEntry, ProjectOpenResult,
-    ProjectSummary, ProviderSecretResult, TaskMutationResult, TaskSummary,
+    AiJobUpdate, AiSubmissionResult, ChatMessageSummary, FilePreview, LoadedChat,
+    ModelProviderSummary, ProjectFileEntry, ProjectOpenResult, ProjectSummary,
+    ProviderSecretResult, TaskMutationResult, TaskSummary,
 };
 use crate::security;
 
@@ -303,10 +304,10 @@ pub fn save_provider_secret_metadata(
     })
 }
 
-pub fn submit_prompt(
+pub fn start_prompt_job(
     database_path: &Path,
     prompt: String,
-    history: Vec<(String, String)>,
+    project_id: Option<String>,
 ) -> Result<AiSubmissionResult, String> {
     let connection = open_connection(database_path)?;
     let trimmed = prompt.trim();
@@ -319,9 +320,14 @@ pub fn submit_prompt(
     let assistant_message_id = Uuid::new_v4().to_string();
     connection
         .execute(
-            "INSERT INTO sessions (id, title, mode, selected_agent, status, summary, created_at, updated_at)
-             VALUES (?1, ?2, 'Plan Mode', 'Planner Agent', 'active', ?3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-            params![session_id, short_title(trimmed), "Created from prompt composer"],
+            "INSERT INTO sessions (id, project_id, title, mode, selected_agent, status, summary, last_message_at, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 'Build Mode', 'Planner Agent', 'active', ?4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            params![
+                session_id,
+                project_id.as_deref(),
+                short_title(trimmed),
+                "Created from prompt composer"
+            ],
         )
         .map_err(|error| format!("Unable to create AI session: {error}"))?;
     connection
@@ -338,54 +344,31 @@ pub fn submit_prompt(
 
     let provider_status = configured_provider_status(&connection)?;
     let task_list_id = if should_create_tasks(trimmed) {
-        Some(create_task_plan(&connection, &session_id, trimmed)?)
+        Some(create_task_plan(
+            &connection,
+            &session_id,
+            project_id.as_deref(),
+            trimmed,
+        )?)
     } else {
         None
     };
     let tasks = load_session_tasks(&connection, &session_id)?;
-    let (assistant_message, ai_status, ai_error) = if provider_status == "Configured" {
-        match call_default_provider(&connection, trimmed, &history) {
-            Ok(reply) => (reply, "ok", None),
-            Err(error) => (
-                format!(
-                    "Provider call failed: {error}. Check the API key, base URL, and model in the Models panel."
-                ),
-                "error",
-                Some(error),
-            ),
-        }
-    } else {
-        (
-            "No AI provider is configured yet. Configure one in the Models panel — paste an API key, press Save, and try again.".to_string(),
-            "not_configured",
-            None,
-        )
-    };
-    let assistant_message = bound_assistant_message(&assistant_message);
+    let assistant_message =
+        "Sync is working in the background. You can keep using the app while this request runs."
+            .to_string();
     connection
         .execute(
             "INSERT INTO messages (id, session_id, role, content, status, created_at, updated_at)
-             VALUES (?1, ?2, 'assistant', ?3, 'created', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+             VALUES (?1, ?2, 'assistant', ?3, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             params![assistant_message_id, session_id, assistant_message.as_str()],
         )
         .map_err(|error| format!("Unable to store assistant message: {error}"))?;
-    connection
-        .execute(
-            "INSERT INTO model_usage_events (id, session_id, purpose, status, error_message, created_at)
-             VALUES (?1, ?2, 'chat_response', ?3, ?4, CURRENT_TIMESTAMP)",
-            params![
-                Uuid::new_v4().to_string(),
-                session_id,
-                ai_status,
-                ai_error.as_deref().unwrap_or("")
-            ],
-        )
-        .map_err(|error| format!("Unable to store model usage event: {error}"))?;
     let history_event = history::create_history_event(
         &connection,
         "session_started",
-        "AI session created",
-        "Prompt stored locally with task planning metadata.",
+        "AI session queued",
+        "Prompt stored locally; provider work is running in the background.",
         "Completed",
         "info",
     )?;
@@ -400,6 +383,445 @@ pub fn submit_prompt(
         provider_status,
         history_event,
     })
+}
+
+pub fn complete_prompt_job(
+    database_path: &Path,
+    session_id: String,
+    assistant_message_id: String,
+    prompt: String,
+    history: Vec<(String, String)>,
+    project_id: Option<String>,
+) -> Result<AiJobUpdate, String> {
+    let connection = open_connection(database_path)?;
+    let provider_status = configured_provider_status(&connection)?;
+    let prompt_with_context = attach_project_context(&connection, project_id.as_deref(), &prompt)?;
+    let (assistant_message, ai_status, ai_error) = if provider_status == "Configured" {
+        match call_default_provider(&connection, &prompt_with_context, &history) {
+            Ok(reply) => (reply, "ok", None),
+            Err(error) => (
+                format!(
+                    "Provider call failed: {error}. Check the API key, base URL, and model in the Models panel."
+                ),
+                "error",
+                Some(error),
+            ),
+        }
+    } else {
+        (
+            "No AI provider is configured yet. Configure one in the Models panel, then send the request again.".to_string(),
+            "not_configured",
+            None,
+        )
+    };
+
+    let assistant_message = bound_assistant_message(&assistant_message);
+    let applied_files = if ai_status == "ok" {
+        apply_generated_file_artifacts(
+            &connection,
+            project_id.as_deref(),
+            &session_id,
+            &assistant_message,
+        )?
+    } else {
+        Vec::new()
+    };
+    let final_message = if applied_files.is_empty() {
+        assistant_message
+    } else {
+        format!(
+            "{assistant_message}\n\nApplied files:\n{}",
+            applied_files
+                .iter()
+                .map(|path| format!("- {path}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    };
+
+    connection
+        .execute(
+            "UPDATE messages
+             SET content = ?1, status = ?2, error_state = ?3, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?4",
+            params![
+                final_message.as_str(),
+                if ai_status == "ok" {
+                    "created"
+                } else {
+                    "error"
+                },
+                ai_error.as_deref(),
+                assistant_message_id
+            ],
+        )
+        .map_err(|error| format!("Unable to update assistant message: {error}"))?;
+    connection
+        .execute(
+            "UPDATE sessions SET last_message_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+            params![session_id],
+        )
+        .map_err(|error| format!("Unable to update session timestamp: {error}"))?;
+    connection
+        .execute(
+            "INSERT INTO model_usage_events (id, session_id, purpose, status, error_message, created_at)
+             VALUES (?1, ?2, 'chat_response', ?3, ?4, CURRENT_TIMESTAMP)",
+            params![
+                Uuid::new_v4().to_string(),
+                session_id,
+                ai_status,
+                ai_error.as_deref().unwrap_or("")
+            ],
+        )
+        .map_err(|error| format!("Unable to store model usage event: {error}"))?;
+    history::create_history_event(
+        &connection,
+        "ai_job_completed",
+        "AI job completed",
+        if ai_status == "ok" {
+            "Background provider response stored."
+        } else {
+            "Background provider response failed or provider is not configured."
+        },
+        if ai_status == "ok" {
+            "Completed"
+        } else {
+            "Failed"
+        },
+        if ai_status == "ok" {
+            "success"
+        } else {
+            "error"
+        },
+    )?;
+
+    Ok(AiJobUpdate {
+        session_id: session_id.clone(),
+        assistant_message_id,
+        status: if ai_status == "ok" {
+            "ok".to_string()
+        } else {
+            "error".to_string()
+        },
+        assistant_message: final_message,
+        provider_status,
+        error_message: ai_error,
+        applied_files,
+        tasks: load_session_tasks(&connection, &session_id)?,
+    })
+}
+
+pub fn load_latest_chat(database_path: &Path) -> Result<Option<LoadedChat>, String> {
+    let connection = open_connection(database_path)?;
+    let session: Option<(String, String)> = connection
+        .query_row(
+            "SELECT id, title
+             FROM sessions
+             WHERE archived = 0 AND deleted_at IS NULL
+             ORDER BY COALESCE(last_message_at, updated_at, created_at) DESC
+             LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|error| format!("Unable to load latest session: {error}"))?;
+
+    let Some((session_id, title)) = session else {
+        return Ok(None);
+    };
+
+    Ok(Some(LoadedChat {
+        messages: load_session_messages(&connection, &session_id)?,
+        tasks: load_session_tasks(&connection, &session_id)?,
+        session_id,
+        title,
+    }))
+}
+
+fn load_session_messages(
+    connection: &Connection,
+    session_id: &str,
+) -> Result<Vec<ChatMessageSummary>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, session_id, role, content, status, created_at
+             FROM messages
+             WHERE session_id = ?1
+             ORDER BY created_at ASC",
+        )
+        .map_err(|error| format!("Unable to prepare message query: {error}"))?;
+    let rows = statement
+        .query_map(params![session_id], |row| {
+            Ok(ChatMessageSummary {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                role: row.get(2)?,
+                content: row.get(3)?,
+                status: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })
+        .map_err(|error| format!("Unable to load messages: {error}"))?;
+
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|error| format!("Unable to collect messages: {error}"))
+}
+
+fn attach_project_context(
+    connection: &Connection,
+    project_id: Option<&str>,
+    prompt: &str,
+) -> Result<String, String> {
+    let Some(project_id) = project_id else {
+        return Ok(prompt.to_string());
+    };
+    let project = load_project_summary(connection, project_id, true)?;
+    let files = list_project_files_from_connection(connection, project_id, 80)?;
+    let file_lines = files
+        .iter()
+        .map(|file| {
+            format!(
+                "- {} ({}, {} bytes{})",
+                file.relative_path,
+                file.language,
+                file.size,
+                if file.sensitive { ", sensitive" } else { "" }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    Ok(format!(
+        "{prompt}\n\nSync opened project:\nName: {}\nRoot: {}\nLanguages: {}\nFrameworks/tools: {}\n\nIndexed files snapshot:\n{}\n\nWhen you need Sync to create or update files automatically, return fenced code blocks whose first line is exactly `// sync:path=relative/path` or `# sync:path=relative/path`. Sync will only apply safe text files inside the opened project folder and will skip sensitive paths.",
+        project.name,
+        project.path,
+        project.language,
+        project.framework,
+        file_lines
+    ))
+}
+
+fn list_project_files_from_connection(
+    connection: &Connection,
+    project_id: &str,
+    limit: usize,
+) -> Result<Vec<ProjectFileEntry>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, project_id, file_path, relative_path, file_name, COALESCE(extension, ''),
+                    size_bytes, COALESCE(language, 'Plain Text'), sensitive, binary, modified_at
+             FROM project_files_index
+             WHERE project_id = ?1 AND ignored = 0
+             ORDER BY sensitive ASC, size_bytes ASC, relative_path ASC
+             LIMIT ?2",
+        )
+        .map_err(|error| format!("Unable to prepare project file query: {error}"))?;
+    let rows = statement
+        .query_map(params![project_id, limit as i64], |row| {
+            Ok(ProjectFileEntry {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                path: row.get(2)?,
+                relative_path: row.get(3)?,
+                file_name: row.get(4)?,
+                extension: row.get(5)?,
+                size: row.get::<_, i64>(6)? as u64,
+                language: row.get(7)?,
+                sensitive: row.get::<_, i64>(8)? == 1,
+                binary: row.get::<_, i64>(9)? == 1,
+                modified_at: row.get(10)?,
+            })
+        })
+        .map_err(|error| format!("Unable to load project files: {error}"))?;
+
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|error| format!("Unable to collect project files: {error}"))
+}
+
+fn apply_generated_file_artifacts(
+    connection: &Connection,
+    project_id: Option<&str>,
+    session_id: &str,
+    assistant_message: &str,
+) -> Result<Vec<String>, String> {
+    let Some(project_id) = project_id else {
+        return Ok(Vec::new());
+    };
+    let root: String = connection
+        .query_row(
+            "SELECT normalized_root_path FROM projects WHERE id = ?1 AND deleted_at IS NULL",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("Unable to load project root for apply: {error}"))?;
+    let root = PathBuf::from(root);
+    let artifacts = extract_file_artifacts(assistant_message);
+    let mut applied = Vec::new();
+
+    for (relative_path, content) in artifacts {
+        let target = safe_project_target(&root, &relative_path)?;
+        if security::is_sensitive_path(&target) {
+            history::record_audit_event(
+                connection,
+                "auto_apply_sensitive_file_blocked",
+                &target.display().to_string(),
+                "High",
+                "blocked",
+                "Generated artifact targeted a sensitive path",
+            )?;
+            continue;
+        }
+        let extension = target
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_string();
+        if is_binary_extension(&extension) || content.len() > 600_000 {
+            continue;
+        }
+
+        let snapshot_id = if target.exists() {
+            Some(snapshot_file(connection, project_id, &target)?)
+        } else {
+            None
+        };
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("Unable to create artifact parent: {error}"))?;
+        }
+        fs::write(&target, content.as_bytes())
+            .map_err(|error| format!("Unable to apply generated file: {error}"))?;
+        let change_id = Uuid::new_v4().to_string();
+        connection
+            .execute(
+                "INSERT INTO file_changes (
+                    id, project_id, session_id, file_path, change_type, status,
+                    snapshot_id_before, summary, applied_at, metadata_json
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, 'applied', ?6, ?7, CURRENT_TIMESTAMP, ?8)",
+                params![
+                    change_id,
+                    project_id,
+                    session_id,
+                    target.display().to_string(),
+                    if snapshot_id.is_some() {
+                        "modify"
+                    } else {
+                        "create"
+                    },
+                    snapshot_id.as_deref(),
+                    "Applied generated Sync artifact inside opened project folder",
+                    serde_json::json!({ "source": "ai_generated_artifact" }).to_string()
+                ],
+            )
+            .map_err(|error| format!("Unable to record file change: {error}"))?;
+        history::create_history_event(
+            connection,
+            "file_change_applied",
+            "Generated file applied",
+            &target.display().to_string(),
+            "Completed",
+            "success",
+        )?;
+        applied.push(relative_path);
+    }
+
+    Ok(applied)
+}
+
+fn snapshot_file(
+    connection: &Connection,
+    project_id: &str,
+    target: &Path,
+) -> Result<String, String> {
+    let snapshot_id = Uuid::new_v4().to_string();
+    let base = std::env::var("APPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."));
+    let snapshot_path = base
+        .join("Sync")
+        .join("snapshots")
+        .join(format!("{snapshot_id}.bak"));
+    if let Some(parent) = snapshot_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Unable to create snapshot directory: {error}"))?;
+    }
+    fs::copy(target, &snapshot_path)
+        .map_err(|error| format!("Unable to snapshot existing file: {error}"))?;
+    let size = fs::metadata(&snapshot_path)
+        .map(|metadata| metadata.len() as i64)
+        .unwrap_or(0);
+    connection
+        .execute(
+            "INSERT INTO file_snapshots (id, project_id, file_path, snapshot_path, size_bytes, reason)
+             VALUES (?1, ?2, ?3, ?4, ?5, 'before_ai_generated_apply')",
+            params![
+                snapshot_id,
+                project_id,
+                target.display().to_string(),
+                snapshot_path.display().to_string(),
+                size
+            ],
+        )
+        .map_err(|error| format!("Unable to record file snapshot: {error}"))?;
+    Ok(snapshot_id)
+}
+
+fn safe_project_target(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
+    let relative = Path::new(relative_path);
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::Prefix(_)))
+    {
+        return Err("Generated file path must stay inside the opened project".to_string());
+    }
+    let target = root.join(relative);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Unable to prepare generated file parent: {error}"))?;
+    }
+    security::ensure_within_root(root, &target)
+}
+
+fn extract_file_artifacts(source: &str) -> Vec<(String, String)> {
+    let mut artifacts = Vec::new();
+    let mut lines = source.lines().peekable();
+    while let Some(line) = lines.next() {
+        if !line.trim_start().starts_with("```") {
+            continue;
+        }
+        let mut block = Vec::new();
+        for code_line in lines.by_ref() {
+            if code_line.trim_start().starts_with("```") {
+                break;
+            }
+            block.push(code_line);
+        }
+        let Some(first_line) = block.first().map(|value| value.trim()) else {
+            continue;
+        };
+        let Some(path) = parse_sync_path(first_line) else {
+            continue;
+        };
+        let content = block.into_iter().skip(1).collect::<Vec<_>>().join("\n");
+        artifacts.push((path, content));
+    }
+    artifacts
+}
+
+fn parse_sync_path(line: &str) -> Option<String> {
+    let marker = "sync:path=";
+    let index = line.find(marker)?;
+    let path = line[index + marker.len()..]
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
 }
 
 fn open_connection(path: &Path) -> Result<Connection, String> {
@@ -683,12 +1105,13 @@ fn call_openai_compatible(
     messages.push(serde_json::json!({
         "role": "system",
         "content": "You are Sync, a desktop AI coding workspace assistant. \
-                    Be thorough but well-structured: when the user asks for code, give a clear plan, \
-                    then the code in fenced markdown blocks with a language tag, then a short summary \
-                    of what you produced and any follow-ups. Use markdown headings, bullet lists, and \
-                    bold sparingly to keep the answer scannable. Prefer concise prose over filler. \
-                    If you would change files in a real workspace, end your message with a `Changes` \
-                    section listing each file and what would change. Ask before destructive actions."
+                    Work like a serious coding workspace, not a chat demo. When the user asks you \
+                    to build or fix files in the opened project, return complete replacement file \
+                    contents in fenced code blocks and make the first line of each block \
+                    `// sync:path=relative/path` (or `# sync:path=relative/path` for non-C-like files). \
+                    Sync will apply only safe text files inside the opened folder. Do not target \
+                    secrets, credentials, .env files, system paths, deletes, force pushes, or \
+                    destructive commands. Also include a concise summary of what changed."
     }));
 
     // Replay a bounded slice of prior turns. Rust also bounds history so a
@@ -855,16 +1278,18 @@ fn configured_provider_status(connection: &Connection) -> Result<String, String>
 fn create_task_plan(
     connection: &Connection,
     session_id: &str,
+    project_id: Option<&str>,
     prompt: &str,
 ) -> Result<String, String> {
     let task_list_id = Uuid::new_v4().to_string();
     connection
         .execute(
-            "INSERT INTO task_lists (id, session_id, title, description, owner_agent, status, progress_percentage)
-             VALUES (?1, ?2, ?3, ?4, 'Planner Agent', 'active', 0)",
+            "INSERT INTO task_lists (id, session_id, project_id, title, description, owner_agent, status, progress_percentage)
+             VALUES (?1, ?2, ?3, ?4, ?5, 'Planner Agent', 'active', 0)",
             params![
                 task_list_id,
                 session_id,
+                project_id,
                 short_title(prompt),
                 "Generated from prompt composer"
             ],
@@ -921,12 +1346,13 @@ fn create_task_plan(
         connection
             .execute(
                 "INSERT INTO tasks (
-                    id, task_list_id, session_id, title, description, status, priority,
+                    id, task_list_id, project_id, session_id, title, description, status, priority,
                     owner_agent, risk_level, approval_state, related_target, required_tools, affected_files
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'Medium', ?7, ?8, ?9, ?10, '[]', '[]')",
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'Medium', ?8, ?9, ?10, ?11, '[]', '[]')",
                 params![
                     Uuid::new_v4().to_string(),
                     task_list_id,
+                    project_id,
                     session_id,
                     title,
                     description,

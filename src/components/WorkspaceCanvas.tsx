@@ -12,12 +12,21 @@ import {
   User
 } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import { GitHubAuthFrame } from "../features/integrations/GitHubAuthFrame";
-import { openProjectFolder, submitAiPrompt, type ChatHistoryEntry } from "../lib/backend";
+import {
+  isTauriRuntime,
+  loadLatestChat,
+  openProjectFolder,
+  submitAiPrompt,
+  type ChatHistoryEntry
+} from "../lib/backend";
 import { MarkdownView } from "./MarkdownView";
 import type {
+  AiJobUpdate,
   BootstrapPayload,
+  ChatMessageSummary,
   ModelProviderSummary,
   NavKey,
   ProjectFileEntry,
@@ -48,6 +57,7 @@ type ChatMessage =
 const HISTORY_MESSAGE_LIMIT = 12;
 const HISTORY_CONTENT_LIMIT = 12_000;
 const LARGE_PROMPT_SOFT_LIMIT = 200_000;
+const MAX_COMPOSER_CHARS = 120_000;
 const TEXT_PREVIEW_STEP = 10_000;
 
 export function WorkspaceCanvas({
@@ -69,7 +79,70 @@ export function WorkspaceCanvas({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [stage, setStage] = useState<string>("Thinking");
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onTasksGeneratedRef = useRef(onTasksGenerated);
+
+  useEffect(() => {
+    onTasksGeneratedRef.current = onTasksGenerated;
+  }, [onTasksGenerated]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadLatestChat()
+      .then((chat) => {
+        if (cancelled || !chat || chat.messages.length === 0) return;
+        setActiveSessionId(chat.sessionId);
+        setMessages(chat.messages.map(chatMessageToBubble));
+        if (chat.tasks.length > 0) {
+          onTasksGeneratedRef.current(chat.tasks);
+        }
+      })
+      .catch((error) => {
+        console.warn("Unable to autoload latest chat", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+
+    listen<AiJobUpdate>("sync://ai-job-updated", (event) => {
+      if (disposed) return;
+      const update = event.payload;
+      setActiveSessionId(update.sessionId);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === update.assistantMessageId
+            ? {
+                ...message,
+                content: update.assistantMessage,
+                status: update.status === "ok" ? "ok" : "error"
+              }
+            : message
+        )
+      );
+      if (update.tasks.length > 0) {
+        onTasksGeneratedRef.current(update.tasks);
+      }
+      setBusy(false);
+      if (update.appliedFiles.length > 0) {
+        setStatusMessage(`Applied ${update.appliedFiles.length} file(s) inside the opened project.`);
+      }
+    }).then((dispose) => {
+      unlisten = dispose;
+      if (disposed) dispose();
+    });
+
+    return () => {
+      disposed = true;
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   useEffect(() => {
     if (!busy) {
@@ -126,12 +199,24 @@ export function WorkspaceCanvas({
 
     try {
       const previous = buildBoundedHistory(messages);
-      const result = await submitAiPrompt(promptForRequest, previous);
+      const result = await submitAiPrompt(
+        promptForRequest,
+        previous,
+        hasOpenedProject ? selectedProject?.id : null
+      );
+      setActiveSessionId(result.sessionId);
       onTasksGenerated(result.tasks);
       setMessages((current) =>
         current.map((message) =>
-          message.id === assistantId
-            ? { ...message, content: result.assistantMessage, status: "ok" }
+          message.id === userId
+            ? { ...message, id: result.userMessageId }
+            : message.id === assistantId
+            ? {
+                ...message,
+                id: result.assistantMessageId,
+                content: result.assistantMessage,
+                status: "pending"
+              }
             : message
         )
       );
@@ -144,7 +229,6 @@ export function WorkspaceCanvas({
             : message
         )
       );
-    } finally {
       setBusy(false);
     }
   }
@@ -304,6 +388,18 @@ function ChatBubble({ message, busy }: { message: ChatMessage; busy: boolean }) 
   );
 }
 
+function chatMessageToBubble(message: ChatMessageSummary): ChatMessage {
+  if (message.role === "user") {
+    return { id: message.id, role: "user", content: message.content };
+  }
+  return {
+    id: message.id,
+    role: "assistant",
+    content: message.content,
+    status: message.status === "error" ? "error" : message.status === "pending" ? "pending" : "ok"
+  };
+}
+
 function TextPreview({ source }: { source: string }) {
   const [visibleChars, setVisibleChars] = useState(TEXT_PREVIEW_STEP);
   const truncated = source.length > visibleChars;
@@ -380,6 +476,13 @@ function clampContentForHistory(content: string) {
   return `${head}\n\n[Middle of this previous message was omitted to keep Sync responsive.]\n\n${tail}`;
 }
 
+function limitComposerInput(value: string) {
+  if (value.length <= MAX_COMPOSER_CHARS) {
+    return value;
+  }
+  return `${value.slice(0, MAX_COMPOSER_CHARS)}\n\n[Sync capped this pasted prompt to keep the desktop app responsive. Open the project folder and ask Sync to inspect files instead of pasting very large files into chat.]`;
+}
+
 function PromptComposer({
   prompt,
   onPromptChange,
@@ -419,7 +522,7 @@ function PromptComposer({
       </div>
       <textarea
         value={prompt}
-        onChange={(event) => onPromptChange(event.target.value)}
+        onChange={(event) => onPromptChange(limitComposerInput(event.target.value))}
         onKeyDown={(event) => {
           if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
             event.preventDefault();

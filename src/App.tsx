@@ -14,24 +14,42 @@ import type {
 
 export default function App() {
   const [payload, setPayload] = useState<BootstrapPayload>(demoPayload);
-  const [activeView, setActiveView] = useState<NavKey>("projects");
+  const [viewHistory, setViewHistory] = useState<NavKey[]>(["projects"]);
+  const [viewIndex, setViewIndex] = useState(0);
+  const activeView = viewHistory[viewIndex] ?? "projects";
   const [tasks, setTasks] = useState<SyncTask[]>([]);
   const [projectFiles, setProjectFiles] = useState<ProjectFileEntry[]>([]);
   const [prompt, setPrompt] = useState("");
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [hasOpenedProject, setHasOpenedProject] = useState(false);
 
+  function navigate(view: NavKey) {
+    setViewHistory((current) => {
+      const truncated = current.slice(0, viewIndex + 1);
+      if (truncated[truncated.length - 1] === view) return truncated;
+      return [...truncated, view];
+    });
+    setViewIndex((current) => current + 1);
+  }
+
+  function goBack() {
+    setViewIndex((current) => Math.max(0, current - 1));
+  }
+
+  function goForward() {
+    setViewIndex((current) => Math.min(viewHistory.length - 1, current + 1));
+  }
+
+  const canGoBack = viewIndex > 0;
+  const canGoForward = viewIndex < viewHistory.length - 1;
+
   useEffect(() => {
     let mounted = true;
-
     bootstrapSync().then((nextPayload) => {
       if (!mounted) return;
       setPayload(nextPayload);
     });
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const selectedProject = useMemo(
@@ -55,9 +73,7 @@ export default function App() {
   }
 
   function handleTasksGenerated(nextTasks: SyncTask[]) {
-    if (nextTasks.length > 0) {
-      setHasActiveSession(true);
-    }
+    if (nextTasks.length > 0) setHasActiveSession(true);
     setTasks((currentTasks) => {
       const existing = new Set(currentTasks.map((task) => task.id));
       return [...nextTasks.filter((task) => !existing.has(task.id)), ...currentTasks];
@@ -98,8 +114,12 @@ export default function App() {
       prompt={prompt}
       hasActiveSession={hasActiveSession}
       hasOpenedProject={hasOpenedProject}
+      canGoBack={canGoBack}
+      canGoForward={canGoForward}
       onPromptChange={setPrompt}
-      onNavigate={setActiveView}
+      onNavigate={navigate}
+      onBack={goBack}
+      onForward={goForward}
       onProjectOpened={handleProjectOpened}
       onTasksGenerated={handleTasksGenerated}
       onProviderUpdated={handleProviderUpdated}
