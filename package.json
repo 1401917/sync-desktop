@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "build:installer": "npm run tauri:build"
+    "build:installer": "npm run tauri:build && powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/copy-installer.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

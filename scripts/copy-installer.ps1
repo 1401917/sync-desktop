@@ -1,7 +1,13 @@
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$BundleDir = Join-Path $RepoRoot "src-tauri\target\release\bundle\nsis"
+$TargetRoot = if ($env:CARGO_TARGET_DIR) {
+  $env:CARGO_TARGET_DIR
+} else {
+  Join-Path $RepoRoot "src-tauri\target"
+}
+
+$BundleDir = Join-Path $TargetRoot "release\bundle\nsis"
 $Installer = Get-ChildItem $BundleDir -Filter "*setup.exe" |
   Where-Object { $_.Name -ne "setup_sync.exe" } |
   Sort-Object LastWriteTime -Descending |
