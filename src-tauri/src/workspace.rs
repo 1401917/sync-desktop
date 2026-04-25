@@ -13,6 +13,11 @@ use crate::models::{
 use crate::security;
 
 const MAX_PREVIEW_BYTES: u64 = 220_000;
+const MAX_STORED_MESSAGE_CHARS: usize = 220_000;
+const MAX_PROVIDER_PROMPT_CHARS: usize = 64_000;
+const MAX_PROVIDER_HISTORY_MESSAGES: usize = 8;
+const MAX_PROVIDER_HISTORY_ITEM_CHARS: usize = 6_000;
+const MAX_ASSISTANT_MESSAGE_CHARS: usize = 160_000;
 
 pub fn open_project(database_path: &Path, root: String) -> Result<ProjectOpenResult, String> {
     let connection = open_connection(database_path)?;
@@ -323,7 +328,11 @@ pub fn submit_prompt(
         .execute(
             "INSERT INTO messages (id, session_id, role, content, status, created_at, updated_at)
              VALUES (?1, ?2, 'user', ?3, 'created', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-            params![user_message_id, session_id, security::mask_secrets(trimmed)],
+            params![
+                user_message_id,
+                session_id,
+                bound_stored_message(&security::mask_secrets(trimmed), "user prompt")
+            ],
         )
         .map_err(|error| format!("Unable to store user message: {error}"))?;
 
@@ -352,11 +361,12 @@ pub fn submit_prompt(
             None,
         )
     };
+    let assistant_message = bound_assistant_message(&assistant_message);
     connection
         .execute(
             "INSERT INTO messages (id, session_id, role, content, status, created_at, updated_at)
              VALUES (?1, ?2, 'assistant', ?3, 'created', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-            params![assistant_message_id, session_id, assistant_message],
+            params![assistant_message_id, session_id, assistant_message.as_str()],
         )
         .map_err(|error| format!("Unable to store assistant message: {error}"))?;
     connection
@@ -667,7 +677,9 @@ fn call_openai_compatible(
         .build()
         .map_err(|error| format!("HTTP client init failed: {error}"))?;
 
-    let mut messages: Vec<serde_json::Value> = Vec::with_capacity(history.len() + 2);
+    let bounded_history = bound_provider_history(history);
+    let bounded_prompt = bound_provider_prompt(prompt);
+    let mut messages: Vec<serde_json::Value> = Vec::with_capacity(bounded_history.len() + 2);
     messages.push(serde_json::json!({
         "role": "system",
         "content": "You are Sync, a desktop AI coding workspace assistant. \
@@ -679,14 +691,13 @@ fn call_openai_compatible(
                     section listing each file and what would change. Ask before destructive actions."
     }));
 
-    // Replay prior turns (user/assistant) so multi-turn conversations have
-    // memory. We trust the caller to bound the slice; the client side caps
-    // it to keep the prompt within the model's context window.
-    for (role, content) in history {
+    // Replay a bounded slice of prior turns. Rust also bounds history so a
+    // stale/older frontend cannot freeze the app with a huge IPC payload.
+    for (role, content) in &bounded_history {
         messages.push(serde_json::json!({ "role": role, "content": content }));
     }
 
-    messages.push(serde_json::json!({ "role": "user", "content": prompt }));
+    messages.push(serde_json::json!({ "role": "user", "content": bounded_prompt }));
 
     let body = serde_json::json!({
         "model": model,
@@ -728,19 +739,101 @@ fn call_openai_compatible(
         .and_then(|content| content.as_str())
         .map(|s| s.trim().to_string());
 
-    content.ok_or_else(|| {
-        format!(
-            "Provider response did not contain a message: {}",
-            truncate_str(&raw, 240)
-        )
-    })
+    content
+        .map(|value| bound_assistant_message(&value))
+        .ok_or_else(|| {
+            format!(
+                "Provider response did not contain a message: {}",
+                truncate_str(&raw, 240)
+            )
+        })
+}
+
+fn bound_provider_history(history: &[(String, String)]) -> Vec<(String, String)> {
+    history
+        .iter()
+        .rev()
+        .take(MAX_PROVIDER_HISTORY_MESSAGES)
+        .map(|(role, content)| {
+            (
+                sanitize_chat_role(role),
+                bound_middle(
+                    content,
+                    MAX_PROVIDER_HISTORY_ITEM_CHARS,
+                    "Previous message shortened by Sync before provider call.",
+                ),
+            )
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect()
+}
+
+fn bound_provider_prompt(prompt: &str) -> String {
+    bound_middle(
+        prompt,
+        MAX_PROVIDER_PROMPT_CHARS,
+        "Large prompt shortened by Sync before provider call. Ask for specific files/context if more detail is needed.",
+    )
+}
+
+fn bound_stored_message(value: &str, label: &str) -> String {
+    bound_middle(
+        value,
+        MAX_STORED_MESSAGE_CHARS,
+        &format!("{label} shortened before SQLite storage."),
+    )
+}
+
+fn bound_assistant_message(value: &str) -> String {
+    bound_middle(
+        value,
+        MAX_ASSISTANT_MESSAGE_CHARS,
+        "Assistant response shortened for stable desktop rendering.",
+    )
+}
+
+fn bound_middle(value: &str, max_chars: usize, notice: &str) -> String {
+    let length = value.chars().count();
+    if length <= max_chars {
+        return value.to_string();
+    }
+
+    let head_count = max_chars.saturating_mul(2) / 3;
+    let tail_count = max_chars.saturating_sub(head_count);
+    format!(
+        "{}\n\n[{} Original length: {} chars. Omitted middle: {} chars.]\n\n{}",
+        take_chars(value, head_count),
+        notice,
+        length,
+        length.saturating_sub(max_chars),
+        take_last_chars(value, tail_count)
+    )
+}
+
+fn sanitize_chat_role(role: &str) -> String {
+    match role {
+        "assistant" => "assistant".to_string(),
+        _ => "user".to_string(),
+    }
+}
+
+fn take_chars(value: &str, count: usize) -> String {
+    value.chars().take(count).collect()
+}
+
+fn take_last_chars(value: &str, count: usize) -> String {
+    let mut chars: Vec<char> = value.chars().rev().take(count).collect();
+    chars.reverse();
+    chars.into_iter().collect()
 }
 
 fn truncate_str(value: &str, max: usize) -> String {
-    if value.len() <= max {
+    if value.chars().count() <= max {
         value.to_string()
     } else {
-        format!("{}…", &value[..max])
+        format!("{}…", take_chars(value, max))
     }
 }
 

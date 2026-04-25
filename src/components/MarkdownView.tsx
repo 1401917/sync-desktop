@@ -1,14 +1,32 @@
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+const INITIAL_RENDER_LIMIT = 80_000;
+const RENDER_STEP = 80_000;
 
 export function MarkdownView({ source }: { source: string }) {
+  const [renderLimit, setRenderLimit] = useState(INITIAL_RENDER_LIMIT);
+  const isTruncated = source.length > renderLimit;
+  const visibleSource = isTruncated
+    ? `${source.slice(0, renderLimit)}\n\n[Response continues below. Render more to keep Sync responsive.]`
+    : source;
+  const blocks = useMemo(() => parseBlocks(visibleSource), [visibleSource]);
+
   if (!source) return null;
-  const blocks = parseBlocks(source);
+
   return (
     <div className="space-y-2">
       {blocks.map((block, index) => (
         <BlockRenderer key={index} block={block} />
       ))}
+      {isTruncated ? (
+        <button
+          className="rounded-md border border-[#303030] bg-[#202020] px-2.5 py-1 text-[11px] text-[#a9a9a9] transition hover:bg-[#292929] hover:text-[#ededed]"
+          onClick={() => setRenderLimit((current) => current + RENDER_STEP)}
+        >
+          Render more of this response
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -45,6 +45,11 @@ type ChatMessage =
   | { id: string; role: "user"; content: string }
   | { id: string; role: "assistant"; content: string; status?: "pending" | "ok" | "error" };
 
+const HISTORY_MESSAGE_LIMIT = 12;
+const HISTORY_CONTENT_LIMIT = 12_000;
+const LARGE_PROMPT_SOFT_LIMIT = 200_000;
+const TEXT_PREVIEW_STEP = 10_000;
+
 export function WorkspaceCanvas({
   activeView,
   selectedProject,
@@ -77,7 +82,7 @@ export function WorkspaceCanvas({
       "Thinking",
       "Reading project context",
       "Drafting plan",
-      "Calling NVIDIA NIM",
+      "Calling model provider",
       "Composing response"
     ];
     const interval = window.setInterval(() => {
@@ -105,6 +110,10 @@ export function WorkspaceCanvas({
 
     const userId = `u-${Date.now()}`;
     const assistantId = `a-${Date.now()}`;
+    const promptForRequest =
+      trimmedPrompt.length > LARGE_PROMPT_SOFT_LIMIT
+        ? `${trimmedPrompt.slice(0, LARGE_PROMPT_SOFT_LIMIT)}\n\n[Sync truncated this oversized prompt before sending it to the native request pipeline. Attach very large files through project context instead of pasting them into chat.]`
+        : trimmedPrompt;
 
     setMessages((current) => [
       ...current,
@@ -116,17 +125,8 @@ export function WorkspaceCanvas({
     setStatusMessage(null);
 
     try {
-      // Build a bounded history payload from previous turns. We cap at the
-      // most recent 12 messages (≈6 user/assistant pairs) so the context
-      // window stays under control for very long sessions.
-      const previous = messages
-        .filter((message) => !(message.role === "assistant" && message.status === "pending"))
-        .slice(-12)
-        .map<ChatHistoryEntry>((message) => [
-          message.role === "user" ? "user" : "assistant",
-          message.content
-        ]);
-      const result = await submitAiPrompt(trimmedPrompt, previous);
+      const previous = buildBoundedHistory(messages);
+      const result = await submitAiPrompt(promptForRequest, previous);
       onTasksGenerated(result.tasks);
       setMessages((current) =>
         current.map((message) =>
@@ -295,12 +295,35 @@ function ChatBubble({ message, busy }: { message: ChatMessage; busy: boolean }) 
         style={{ wordBreak: "break-word" }}
       >
         {isUser || isError ? (
-          <span style={{ whiteSpace: "pre-wrap" }}>{message.content}</span>
+          <TextPreview source={message.content} />
         ) : (
           <MarkdownView source={message.content} />
         )}
       </div>
     </div>
+  );
+}
+
+function TextPreview({ source }: { source: string }) {
+  const [visibleChars, setVisibleChars] = useState(TEXT_PREVIEW_STEP);
+  const truncated = source.length > visibleChars;
+  const visible = truncated ? source.slice(0, visibleChars) : source;
+
+  return (
+    <span style={{ whiteSpace: "pre-wrap" }}>
+      {visible}
+      {truncated ? (
+        <>
+          {"\n\n"}
+          <button
+            className="rounded-md border border-[#3a3a3a] bg-[#202020] px-2 py-1 text-[11px] text-[#b8b8b8] transition hover:bg-[#2a2a2a] hover:text-[#f0f0f0]"
+            onClick={() => setVisibleChars((current) => current + TEXT_PREVIEW_STEP)}
+          >
+            Show more
+          </button>
+        </>
+      ) : null}
+    </span>
   );
 }
 
@@ -335,6 +358,26 @@ function requiresGitHubAccount(prompt: string) {
     /\bclone\s+(private|github)\b/
   ];
   return remoteGitHubPatterns.some((pattern) => pattern.test(normalizedPrompt));
+}
+
+function buildBoundedHistory(messages: ChatMessage[]): ChatHistoryEntry[] {
+  return messages
+    .filter((message) => !(message.role === "assistant" && message.status === "pending"))
+    .slice(-HISTORY_MESSAGE_LIMIT)
+    .map<ChatHistoryEntry>((message) => [
+      message.role === "user" ? "user" : "assistant",
+      clampContentForHistory(message.content)
+    ]);
+}
+
+function clampContentForHistory(content: string) {
+  if (content.length <= HISTORY_CONTENT_LIMIT) {
+    return content;
+  }
+
+  const head = content.slice(0, Math.floor(HISTORY_CONTENT_LIMIT * 0.65));
+  const tail = content.slice(content.length - Math.floor(HISTORY_CONTENT_LIMIT * 0.25));
+  return `${head}\n\n[Middle of this previous message was omitted to keep Sync responsive.]\n\n${tail}`;
 }
 
 function PromptComposer({
