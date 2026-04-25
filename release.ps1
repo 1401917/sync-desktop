@@ -118,7 +118,25 @@ if (-not $SkipBuild) {
   }
 }
 
-# --- 4. Tag ---
+# --- 4. Launch the new build EARLY, so network failures below cannot
+#        prevent the user from seeing their freshly built app. ---
+if ($Launch) {
+  $exe = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
+  if (Test-Path $exe) {
+    Section "Launching new Sync build"
+    Start-Process -FilePath $exe
+    Ok ("Launched: " + $exe)
+  } else {
+    Write-Warning ("sync.exe not found at " + $exe + "; cannot launch.")
+  }
+}
+
+# All later steps are network/git related. Switch to Continue so a network
+# hiccup does NOT abort the script before printing the final summary.
+$ErrorActionPreference = "Continue"
+$releaseProblems = @()
+
+# --- 5. Tag ---
 $tagName = "v" + $Version
 Section ("Tagging " + $tagName)
 
@@ -127,29 +145,41 @@ if ($existingTag) {
   Write-Warning ("Tag " + $tagName + " already exists locally; skipping git tag.")
 } else {
   git tag -a $tagName -m ("Sync " + $tagName)
-  if ($LASTEXITCODE -ne 0) { throw "git tag failed" }
-  Ok ("Tagged " + $tagName)
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "git tag failed."
+    $releaseProblems += "git tag failed"
+  } else {
+    Ok ("Tagged " + $tagName)
+  }
 }
 
-# --- 5. Push branch + tag ---
+# --- 6. Push branch + tag ---
 if (-not $SkipPush) {
   Section "Pushing to GitHub"
   git push origin $branch
-  if ($LASTEXITCODE -ne 0) { throw "git push branch failed" }
-  Ok "Branch pushed."
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "git push branch failed."
+    $releaseProblems += "git push branch failed"
+  } else {
+    Ok "Branch pushed."
+  }
 
-  git push origin $tagName
-  if ($LASTEXITCODE -ne 0) { throw "git push tag failed" }
-  Ok "Tag pushed."
+  git push origin $tagName 2>&1 | Out-Host
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "git push tag failed (often safe to ignore if the tag already exists on origin)."
+    $releaseProblems += "git push tag failed"
+  } else {
+    Ok "Tag pushed."
+  }
 }
 
-# --- 6. GitHub release ---
+# --- 7. GitHub release ---
 if (-not $SkipRelease) {
   Section "Creating GitHub release"
 
   $ghAvailable = $false
   try {
-    gh --version | Out-Null
+    gh --version *> $null
     $ghAvailable = ($LASTEXITCODE -eq 0)
   } catch {
     $ghAvailable = $false
@@ -169,24 +199,40 @@ if (-not $SkipRelease) {
       Select-Object -First 1 -ExpandProperty FullName
     if ($installerPath) { $assets += $installerPath }
 
-    $createArgs = @("release", "create", $tagName, "--title", ("Sync " + $tagName), "--notes", $notes)
-    if ($assets.Count -gt 0) { $createArgs += $assets }
+    # If the release already exists on GitHub, upload assets to it with
+    # --clobber instead of failing.
+    gh release view $tagName *> $null
+    $releaseExists = ($LASTEXITCODE -eq 0)
 
-    & gh @createArgs
-    if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
-    Ok ("GitHub release " + $tagName + " created.")
-  }
-}
-
-# --- 7. Optional launch ---
-if ($Launch) {
-  $exe = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
-  if (Test-Path $exe) {
-    Section "Launching new Sync build"
-    Start-Process -FilePath $exe
-    Ok ("Launched: " + $exe)
+    if ($releaseExists) {
+      Write-Warning ("Release " + $tagName + " already exists on GitHub; uploading/replacing assets.")
+      if ($assets.Count -gt 0) {
+        & gh release upload $tagName @assets --clobber
+        if ($LASTEXITCODE -ne 0) {
+          Write-Warning ("gh release upload failed (exit " + $LASTEXITCODE + "). Skipping assets but keeping the release.")
+          $releaseProblems += "gh release upload failed"
+        } else {
+          Ok ("Uploaded assets to existing release " + $tagName + ".")
+        }
+      }
+    } else {
+      $createArgs = @("release", "create", $tagName, "--title", ("Sync " + $tagName), "--notes", $notes)
+      if ($assets.Count -gt 0) { $createArgs += $assets }
+      & gh @createArgs
+      if ($LASTEXITCODE -ne 0) {
+        Write-Warning ("gh release create failed (exit " + $LASTEXITCODE + "). The build is still on disk and pushed; create the release manually if needed.")
+        $releaseProblems += "gh release create failed"
+      } else {
+        Ok ("GitHub release " + $tagName + " created.")
+      }
+    }
   }
 }
 
 Section "Done"
-Write-Host ("Sync " + $tagName + " is released. Repo: " + $remote) -ForegroundColor Green
+if ($releaseProblems.Count -gt 0) {
+  Write-Host ("Sync " + $tagName + " built. Some publish steps had issues: " + ($releaseProblems -join ", ")) -ForegroundColor Yellow
+  Write-Host ("Repo: " + $remote) -ForegroundColor Yellow
+} else {
+  Write-Host ("Sync " + $tagName + " is released. Repo: " + $remote) -ForegroundColor Green
+}
