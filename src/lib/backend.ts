@@ -79,6 +79,106 @@ export async function writeTextFileAtPath(path: string, content: string): Promis
   return invoke<string>("write_text_file_at_path", { path, content });
 }
 
+export interface TerminalCommandResult {
+  command: string;
+  cwd: string;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+export async function runTerminalCommand(
+  command: string,
+  cwd?: string | null
+): Promise<TerminalCommandResult> {
+  if (!isTauriRuntime()) {
+    throw new Error("Terminal commands run only inside the Sync desktop app.");
+  }
+  return invoke<TerminalCommandResult>("run_terminal_command", { command, cwd: cwd ?? null });
+}
+
+// ---------------------------------------------------------------------------
+// Tool-calling primitives. The AI's eventual function-calling loop will
+// dispatch to these same Tauri commands. They are also exposed directly to
+// the frontend so a user can inspect / edit / patch through the UI today.
+// ---------------------------------------------------------------------------
+
+export interface DirectoryEntry {
+  name: string;
+  relativePath: string;
+  isDirectory: boolean;
+  isFile: boolean;
+  sizeBytes: number;
+}
+
+export interface FileToolResult {
+  path: string;
+  relativePath: string;
+  bytes: number;
+  linesAdded: number;
+  linesRemoved: number;
+  linesModified: number;
+  truncated: boolean;
+  content: string | null;
+}
+
+function ensureProject(projectRoot: string | null | undefined): string {
+  if (!projectRoot) {
+    throw new Error("Open a project folder first — this tool needs a project root.");
+  }
+  return projectRoot;
+}
+
+export async function readFileTool(
+  projectRoot: string | null | undefined,
+  relativePath: string
+): Promise<FileToolResult> {
+  if (!isTauriRuntime()) throw new Error("File tools require the Sync desktop app.");
+  return invoke<FileToolResult>("read_file_tool", {
+    projectRoot: ensureProject(projectRoot),
+    relativePath
+  });
+}
+
+export async function listDirectoryTool(
+  projectRoot: string | null | undefined,
+  relativePath = ""
+): Promise<DirectoryEntry[]> {
+  if (!isTauriRuntime()) throw new Error("File tools require the Sync desktop app.");
+  return invoke<DirectoryEntry[]>("list_directory_tool", {
+    projectRoot: ensureProject(projectRoot),
+    relativePath
+  });
+}
+
+export async function writeFileTool(
+  projectRoot: string | null | undefined,
+  relativePath: string,
+  content: string
+): Promise<FileToolResult> {
+  if (!isTauriRuntime()) throw new Error("File tools require the Sync desktop app.");
+  return invoke<FileToolResult>("write_file_tool", {
+    projectRoot: ensureProject(projectRoot),
+    relativePath,
+    content
+  });
+}
+
+export async function applyPatchTool(
+  projectRoot: string | null | undefined,
+  relativePath: string,
+  search: string,
+  replace: string
+): Promise<FileToolResult> {
+  if (!isTauriRuntime()) throw new Error("File tools require the Sync desktop app.");
+  return invoke<FileToolResult>("apply_patch_tool", {
+    projectRoot: ensureProject(projectRoot),
+    relativePath,
+    search,
+    replace
+  });
+}
+
 export async function saveProviderKeyMetadata(
   providerId: string,
   key: string

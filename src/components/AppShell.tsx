@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type {
   BootstrapPayload,
   ModelProviderSummary,
@@ -23,6 +24,8 @@ interface AppShellProps {
   hasOpenedProject: boolean;
   canGoBack: boolean;
   canGoForward: boolean;
+  sidebarOpen: boolean;
+  bottomPanel?: ReactNode;
   onPromptChange: (value: string) => void;
   onNavigate: (view: NavKey) => void;
   onBack: () => void;
@@ -33,6 +36,8 @@ interface AppShellProps {
   onIgnoreTask: (taskId: string) => void;
   onRestoreTask: (taskId: string) => void;
   onCompleteTask: (taskId: string) => void;
+  onComposerRef: (focusFn: () => void) => void;
+  onOpenCommandPalette: () => void;
 }
 
 export function AppShell({
@@ -46,6 +51,8 @@ export function AppShell({
   hasOpenedProject,
   canGoBack,
   canGoForward,
+  sidebarOpen,
+  bottomPanel,
   onPromptChange,
   onNavigate,
   onBack,
@@ -55,10 +62,10 @@ export function AppShell({
   onProviderUpdated,
   onIgnoreTask,
   onRestoreTask,
-  onCompleteTask
+  onCompleteTask,
+  onComposerRef,
+  onOpenCommandPalette
 }: AppShellProps) {
-  // Tasks live alongside the chat, so the panel only makes sense on the
-  // session view, not on Plugins, MCP, GitHub, History, etc.
   const showTaskPanel =
     hasActiveSession &&
     tasks.length > 0 &&
@@ -74,14 +81,17 @@ export function AppShell({
             canGoForward={canGoForward}
             onBack={onBack}
             onForward={onForward}
+            onOpenCommandPalette={onOpenCommandPalette}
           />
           <div className="flex min-h-0 flex-1 bg-[#171717]">
-            <Sidebar
-              activeView={activeView}
-              onNavigate={onNavigate}
-              projects={payload.recentProjects}
-              selectedProjectId={selectedProject?.id}
-            />
+            {sidebarOpen ? (
+              <Sidebar
+                activeView={activeView}
+                onNavigate={onNavigate}
+                projects={payload.recentProjects}
+                selectedProjectId={selectedProject?.id}
+              />
+            ) : null}
             <div className="flex min-w-0 flex-1 flex-col">
               <WorkspaceCanvas
                 activeView={activeView}
@@ -95,6 +105,7 @@ export function AppShell({
                 onProjectOpened={onProjectOpened}
                 onTasksGenerated={onTasksGenerated}
                 onProviderUpdated={onProviderUpdated}
+                onComposerRef={onComposerRef}
               />
               {showTaskPanel ? (
                 <TaskPanel
@@ -104,6 +115,7 @@ export function AppShell({
                   onCompleteTask={onCompleteTask}
                 />
               ) : null}
+              {bottomPanel}
             </div>
           </div>
         </div>

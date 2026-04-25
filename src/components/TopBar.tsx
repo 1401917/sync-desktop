@@ -58,6 +58,7 @@ interface TopBarProps {
   canGoForward: boolean;
   onBack: () => void;
   onForward: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
 interface MenuEntry {
@@ -70,7 +71,7 @@ interface MenuEntry {
 
 const updateAvailable = true;
 
-export function TopBar({ payload, canGoBack, canGoForward, onBack, onForward }: TopBarProps) {
+export function TopBar({ payload, canGoBack, canGoForward, onBack, onForward, onOpenCommandPalette }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -246,7 +247,15 @@ export function TopBar({ payload, canGoBack, canGoForward, onBack, onForward }: 
           </button>
         ) : null}
         <button data-no-drag="true" className="titlebar-button" aria-label="Search"><Search size={12} /></button>
-        <button data-no-drag="true" className="titlebar-button" aria-label="Commands"><Command size={12} /></button>
+        <button
+          data-no-drag="true"
+          className="titlebar-button"
+          aria-label="Command Palette"
+          title="Command Palette (Ctrl+Shift+P)"
+          onClick={onOpenCommandPalette}
+        >
+          <Command size={12} />
+        </button>
         <button data-no-drag="true" className="titlebar-button" aria-label="Notifications"><Bell size={12} /></button>
         <button data-no-drag="true" className="titlebar-button" aria-label="Settings"><Settings size={12} /></button>
         <div className="mx-1 h-4 w-px bg-[#303030]" />

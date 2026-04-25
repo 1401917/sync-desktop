@@ -48,6 +48,7 @@ interface WorkspaceCanvasProps {
   onProjectOpened: (result: ProjectOpenResult) => void;
   onTasksGenerated: (tasks: SyncTask[]) => void;
   onProviderUpdated: (provider: ModelProviderSummary) => void;
+  onComposerRef?: (focusFn: () => void) => void;
 }
 
 type ChatMessage =
