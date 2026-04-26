@@ -38,6 +38,9 @@ interface AppShellProps {
   onCompleteTask: (taskId: string) => void;
   onComposerRef: (focusFn: () => void) => void;
   onOpenCommandPalette: () => void;
+  onOpenTerminal: () => void;
+  onToggleBottomPanel: () => void;
+  onToggleSidebar: () => void;
 }
 
 export function AppShell({
@@ -64,7 +67,10 @@ export function AppShell({
   onRestoreTask,
   onCompleteTask,
   onComposerRef,
-  onOpenCommandPalette
+  onOpenCommandPalette,
+  onOpenTerminal,
+  onToggleBottomPanel,
+  onToggleSidebar
 }: AppShellProps) {
   const showTaskPanel =
     hasActiveSession &&
@@ -82,6 +88,9 @@ export function AppShell({
             onBack={onBack}
             onForward={onForward}
             onOpenCommandPalette={onOpenCommandPalette}
+            onOpenTerminal={onOpenTerminal}
+            onToggleBottomPanel={onToggleBottomPanel}
+            onToggleSidebar={onToggleSidebar}
           />
           <div className="flex min-h-0 flex-1 bg-[#171717]">
             {sidebarOpen ? (

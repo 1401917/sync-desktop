@@ -1,6 +1,5 @@
-import { Check, Copy, Save } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
-import { isTauriRuntime, writeTextFileAtPath } from "../lib/backend";
 
 const INITIAL_RENDER_LIMIT = 80_000;
 const RENDER_STEP = 80_000;
@@ -140,22 +139,8 @@ function BlockRenderer({ block }: { block: Block }) {
   );
 }
 
-function defaultExtension(language: string): string {
-  const map: Record<string, string> = {
-    typescript: "ts", tsx: "tsx", javascript: "js", jsx: "jsx",
-    python: "py", py: "py", rust: "rs", rs: "rs",
-    go: "go", java: "java", csharp: "cs", cpp: "cpp", c: "c",
-    bash: "sh", sh: "sh", powershell: "ps1", ps1: "ps1",
-    html: "html", css: "css", json: "json", yaml: "yaml", yml: "yml",
-    toml: "toml", sql: "sql", md: "md", markdown: "md"
-  };
-  return map[language.toLowerCase()] ?? "txt";
-}
-
 function CodeBlock({ language, content }: { language: string; content: string }) {
   const [copied, setCopied] = useState(false);
-  const [savedPath, setSavedPath] = useState<string | null>(null);
-  const [saveBusy, setSaveBusy] = useState(false);
 
   async function copy() {
     try {
@@ -167,59 +152,18 @@ function CodeBlock({ language, content }: { language: string; content: string })
     }
   }
 
-  async function save() {
-    if (!isTauriRuntime()) {
-      alert("Saving files is only available in the Sync desktop app.");
-      return;
-    }
-    setSaveBusy(true);
-    try {
-      const dialogModule = await import("@tauri-apps/plugin-dialog");
-      const ext = defaultExtension(language);
-      const target = await dialogModule.save({
-        title: "Save code as…",
-        defaultPath: `snippet.${ext}`,
-        filters: [
-          { name: language || "Text", extensions: [ext] },
-          { name: "All files", extensions: ["*"] }
-        ]
-      });
-      if (typeof target !== "string" || !target) {
-        return;
-      }
-      const written = await writeTextFileAtPath(target, content);
-      setSavedPath(written);
-      setTimeout(() => setSavedPath(null), 2500);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : String(error));
-    } finally {
-      setSaveBusy(false);
-    }
-  }
-
   return (
     <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#111]">
       <div className="flex items-center justify-between border-b border-[#222] bg-[#171717] px-3 py-1.5">
         <span className="text-[10.5px] uppercase tracking-wider text-[#7a7a7a]">{language}</span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={save}
-            disabled={saveBusy}
-            className="flex items-center gap-1.5 rounded px-2 py-0.5 text-[10.5px] text-[#9a9a9a] transition hover:bg-[#222] hover:text-[#dcdcdc] disabled:opacity-50"
-            aria-label="Save code to file"
-          >
-            {savedPath ? <Check size={11} className="text-[#7fc28a]" /> : <Save size={11} />}
-            {savedPath ? "Saved" : saveBusy ? "Saving…" : "Save"}
-          </button>
-          <button
-            onClick={copy}
-            className="flex items-center gap-1.5 rounded px-2 py-0.5 text-[10.5px] text-[#9a9a9a] transition hover:bg-[#222] hover:text-[#dcdcdc]"
-            aria-label="Copy code"
-          >
-            {copied ? <Check size={11} className="text-[#7fc28a]" /> : <Copy size={11} />}
-            {copied ? "Copied" : "Copy"}
-          </button>
-        </div>
+        <button
+          onClick={copy}
+          className="flex items-center gap-1.5 rounded px-2 py-0.5 text-[10.5px] text-[#9a9a9a] transition hover:bg-[#222] hover:text-[#dcdcdc]"
+          aria-label="Copy code"
+        >
+          {copied ? <Check size={11} className="text-[#7fc28a]" /> : <Copy size={11} />}
+          {copied ? "Copied" : "Copy"}
+        </button>
       </div>
       <pre className="overflow-x-auto px-3 py-2.5 text-[11.5px] leading-[1.55] text-[#e0e0e0]">
         <code>{content}</code>

@@ -271,6 +271,12 @@ export default function App() {
         onCompleteTask={handleCompleteTask}
         onComposerRef={(focusFn) => { composerFocusRef.current = focusFn; }}
         onOpenCommandPalette={() => setPaletteOpen(true)}
+        onOpenTerminal={() => {
+          setBottomOpen(true);
+          setBottomTab("terminal");
+        }}
+        onToggleBottomPanel={() => setBottomOpen((value) => !value)}
+        onToggleSidebar={() => setSidebarOpen((value) => !value)}
       />
       <CommandPalette
         open={paletteOpen}

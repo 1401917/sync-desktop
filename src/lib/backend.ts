@@ -179,6 +179,17 @@ export async function applyPatchTool(
   });
 }
 
+export async function deleteFileTool(
+  projectRoot: string | null | undefined,
+  relativePath: string
+): Promise<FileToolResult> {
+  if (!isTauriRuntime()) throw new Error("File tools require the Sync desktop app.");
+  return invoke<FileToolResult>("delete_file_tool", {
+    projectRoot: ensureProject(projectRoot),
+    relativePath
+  });
+}
+
 export async function saveProviderKeyMetadata(
   providerId: string,
   key: string

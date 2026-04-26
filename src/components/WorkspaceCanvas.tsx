@@ -525,7 +525,14 @@ function PromptComposer({
         value={prompt}
         onChange={(event) => onPromptChange(limitComposerInput(event.target.value))}
         onKeyDown={(event) => {
-          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+          // Enter sends, Shift+Enter inserts a newline (matches Cursor /
+          // ChatGPT / Claude behaviour). IME composition is preserved so
+          // Hebrew/CJK input doesn't trigger a premature send.
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing
+          ) {
             event.preventDefault();
             onSubmit();
           }

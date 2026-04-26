@@ -267,6 +267,83 @@ async fn write_file_tool(
     .map_err(|error| format!("write_file_tool join error: {error}"))?
 }
 
+/// Delete a file inside the active project. Refuses sensitive paths
+/// (`.env`, `.key`, `id_rsa`, etc.), `.git/` internals, and any path
+/// outside the project root. The file must exist; deleting a missing
+/// file is a no-op (returns the path).
+#[tauri::command]
+async fn delete_file_tool(
+    project_root: String,
+    relative_path: String,
+) -> Result<FileToolResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        // Reject deletes that target git internals or known dependency dirs
+        // — even though they're inside the project root, blowing them away
+        // breaks the project hard.
+        let normalized = relative_path.replace('\\', "/").to_lowercase();
+        let blocked_segments = [
+            ".git/", "/.git/", "node_modules/", "/node_modules/",
+            "target/", "/target/", "dist/", "/dist/",
+            "src-tauri/target/",
+        ];
+        if blocked_segments.iter().any(|seg| {
+            normalized.starts_with(seg.trim_start_matches('/')) || normalized.contains(seg)
+        }) {
+            return Err(format!(
+                "Refusing to delete inside protected dependency/build directory: {relative_path}"
+            ));
+        }
+
+        let root = std::path::PathBuf::from(&project_root);
+        let candidate = root.join(&relative_path);
+        let resolved = ensure_under_root(&root, &candidate)?;
+
+        let metadata = match std::fs::metadata(&resolved) {
+            Ok(value) => value,
+            Err(_) => {
+                // Already gone — treat as success.
+                return Ok(FileToolResult {
+                    path: resolved.to_string_lossy().to_string(),
+                    relative_path,
+                    bytes: 0,
+                    lines_added: 0,
+                    lines_removed: 0,
+                    lines_modified: 0,
+                    truncated: false,
+                    content: Some("File did not exist; nothing to delete.".to_string()),
+                });
+            }
+        };
+
+        if metadata.is_dir() {
+            return Err(format!(
+                "Refusing to delete a directory: {relative_path}. Delete files individually."
+            ));
+        }
+
+        // Count the lines being removed for stats.
+        let prior_lines = std::fs::read_to_string(&resolved)
+            .map(|content| content.lines().count())
+            .unwrap_or(0);
+
+        std::fs::remove_file(&resolved)
+            .map_err(|error| format!("Delete failed: {error}"))?;
+
+        Ok(FileToolResult {
+            path: resolved.to_string_lossy().to_string(),
+            relative_path,
+            bytes: 0,
+            lines_added: 0,
+            lines_removed: prior_lines,
+            lines_modified: 0,
+            truncated: false,
+            content: None,
+        })
+    })
+    .await
+    .map_err(|error| format!("delete_file_tool join error: {error}"))?
+}
+
 /// Search-and-replace patch inside an existing file. Fails if `search` is
 /// not found exactly once (so the AI cannot accidentally collapse multiple
 /// regions). Returns line-count diff stats.
@@ -640,6 +717,7 @@ pub fn run() {
             list_directory_tool,
             write_file_tool,
             apply_patch_tool,
+            delete_file_tool,
             mask_secret_preview,
             scan_project_folder,
             git_status,

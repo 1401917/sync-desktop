@@ -59,6 +59,9 @@ interface TopBarProps {
   onBack: () => void;
   onForward: () => void;
   onOpenCommandPalette?: () => void;
+  onOpenTerminal?: () => void;
+  onToggleBottomPanel?: () => void;
+  onToggleSidebar?: () => void;
 }
 
 interface MenuEntry {
@@ -71,7 +74,17 @@ interface MenuEntry {
 
 const updateAvailable = true;
 
-export function TopBar({ payload, canGoBack, canGoForward, onBack, onForward, onOpenCommandPalette }: TopBarProps) {
+export function TopBar({
+  payload,
+  canGoBack,
+  canGoForward,
+  onBack,
+  onForward,
+  onOpenCommandPalette,
+  onOpenTerminal,
+  onToggleBottomPanel,
+  onToggleSidebar
+}: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -132,6 +145,28 @@ export function TopBar({ payload, canGoBack, canGoForward, onBack, onForward, on
       { label: "Paste", shortcut: "Ctrl+V", onSelect: () => { document.execCommand("paste"); } }
     ],
     View: [
+      {
+        label: "Terminal",
+        shortcut: "Ctrl+`",
+        onSelect: () => onOpenTerminal?.()
+      },
+      {
+        label: "Command Palette",
+        shortcut: "Ctrl+Shift+P",
+        onSelect: () => onOpenCommandPalette?.()
+      },
+      { separator: true, label: "" },
+      {
+        label: "Toggle Sidebar",
+        shortcut: "Ctrl+B",
+        onSelect: () => onToggleSidebar?.()
+      },
+      {
+        label: "Toggle Bottom Panel",
+        shortcut: "Ctrl+J",
+        onSelect: () => onToggleBottomPanel?.()
+      },
+      { separator: true, label: "" },
       { label: "Toggle Fullscreen", shortcut: "F11", onSelect: toggleFullscreen },
       { label: "Reload", shortcut: "Ctrl+R", onSelect: () => window.location.reload() }
     ],

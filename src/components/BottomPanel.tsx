@@ -151,6 +151,43 @@ function Tab({
   );
 }
 
+const COMMAND_SUGGESTIONS: Array<{ command: string; hint: string }> = [
+  { command: "git status", hint: "Show changed files" },
+  { command: "git add .", hint: "Stage everything" },
+  { command: "git commit -m \"\"", hint: "Commit staged" },
+  { command: "git push", hint: "Push current branch" },
+  { command: "git pull", hint: "Fetch + merge" },
+  { command: "git log --oneline -20", hint: "Recent commits" },
+  { command: "git branch", hint: "List branches" },
+  { command: "git checkout -b ", hint: "New branch" },
+  { command: "git diff", hint: "Working tree diff" },
+  { command: "git stash", hint: "Stash changes" },
+  { command: "gh repo create --private --source=. --push", hint: "Create private GitHub repo" },
+  { command: "gh repo view --web", hint: "Open repo in browser" },
+  { command: "gh release list", hint: "List releases" },
+  { command: "npm install", hint: "Install dependencies" },
+  { command: "npm run dev", hint: "Vite dev server" },
+  { command: "npm run build", hint: "Build frontend" },
+  { command: "npm run tauri:dev", hint: "Tauri dev mode" },
+  { command: "npm run tauri:build", hint: "Build Windows installer" },
+  { command: "npm test", hint: "Run frontend tests" },
+  { command: "npm audit --audit-level=moderate", hint: "Check vulnerabilities" },
+  { command: "pnpm install", hint: "Install via pnpm" },
+  { command: "yarn install", hint: "Install via yarn" },
+  { command: "cargo check", hint: "Type-check Rust" },
+  { command: "cargo build", hint: "Build Rust" },
+  { command: "cargo build --release", hint: "Release build" },
+  { command: "cargo test", hint: "Run Rust tests" },
+  { command: "cargo clean", hint: "Wipe target/" },
+  { command: "tsc --noEmit", hint: "Type-check TypeScript" },
+  { command: "dir", hint: "List files (Windows)" },
+  { command: "cd ", hint: "Change directory" },
+  { command: "cls", hint: "Clear screen" },
+  { command: "type ", hint: "Print file (Windows)" },
+  { command: "echo ", hint: "Print text" },
+  { command: "where ", hint: "Locate executable" }
+];
+
 function TerminalView({
   workingDirectory,
   terminal,
@@ -165,6 +202,9 @@ function TerminalView({
   onClearTerminal: () => void;
 }) {
   const [input, setInput] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number | null>(null);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -178,11 +218,36 @@ function TerminalView({
     inputRef.current?.focus();
   }, []);
 
+  // Autocomplete: filter the suggestion list as the user types. Empty input
+  // hides the dropdown.
+  const trimmedInput = input.trimStart();
+  const suggestions = trimmedInput.length === 0
+    ? []
+    : COMMAND_SUGGESTIONS
+        .filter((entry) => entry.command.toLowerCase().startsWith(trimmedInput.toLowerCase()))
+        .slice(0, 6);
+
+  useEffect(() => {
+    setSuggestionIndex(0);
+  }, [trimmedInput]);
+
   async function submit() {
     const trimmed = input.trim();
     if (!trimmed || running) return;
     setInput("");
+    setHistoryIndex(null);
+    setHistory((current) => {
+      if (current[current.length - 1] === trimmed) return current;
+      return [...current, trimmed].slice(-50);
+    });
     await onRunCommand(trimmed);
+  }
+
+  function applySuggestion(index: number) {
+    const choice = suggestions[index];
+    if (!choice) return;
+    setInput(choice.command);
+    inputRef.current?.focus();
   }
 
   return (
@@ -227,31 +292,107 @@ function TerminalView({
           ))
         )}
       </div>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
-        className="flex shrink-0 items-center gap-2 border-t border-[#222] bg-[#1a1a1a] px-3 py-2"
-      >
-        <span className="text-[11.5px] text-[#7fc28a]">$</span>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder={running ? "Running…" : "Run a command"}
-          disabled={running}
-          className="h-7 min-w-0 flex-1 border-none bg-transparent font-mono text-[11.5px] text-[#ededed] outline-none placeholder:text-[#666] disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={running || !input.trim()}
-          title="Run"
-          className="grid h-7 w-7 place-items-center rounded text-[#9a9a9a] transition hover:bg-[#262626] hover:text-[#ededed] disabled:opacity-30"
+      <div className="relative shrink-0 border-t border-[#222] bg-[#1a1a1a]">
+        {suggestions.length > 0 ? (
+          <div className="absolute bottom-full left-0 right-0 mb-1 overflow-hidden rounded-md border border-[#2c2c2c] bg-[#1d1d1d] shadow-[0_-12px_28px_rgba(0,0,0,0.45)]">
+            {suggestions.map((entry, index) => (
+              <button
+                key={entry.command}
+                onMouseEnter={() => setSuggestionIndex(index)}
+                onMouseDown={(event) => {
+                  // Prevent input blur before we apply the suggestion.
+                  event.preventDefault();
+                  applySuggestion(index);
+                }}
+                className={`flex w-full items-center gap-3 px-3 py-1.5 text-left transition ${
+                  index === suggestionIndex ? "bg-[#262626]" : "bg-transparent"
+                }`}
+              >
+                <span className="font-mono text-[11.5px] text-[#ededed]">
+                  {entry.command}
+                </span>
+                <span className="ml-auto truncate text-[10.5px] text-[#7a7a7a]">
+                  {entry.hint}
+                </span>
+              </button>
+            ))}
+            <div className="border-t border-[#252525] px-3 py-1 text-[9.5px] text-[#6e6e6e]">
+              Tab complete · ↑ ↓ navigate · Enter run
+            </div>
+          </div>
+        ) : null}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+          className="flex items-center gap-2 px-3 py-2"
         >
-          {running ? <Square size={11} /> : <Play size={11} />}
-        </button>
-      </form>
+          <span className="text-[11.5px] text-[#7fc28a]">$</span>
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              // Tab — accept the highlighted suggestion.
+              if (event.key === "Tab" && suggestions.length > 0) {
+                event.preventDefault();
+                applySuggestion(suggestionIndex);
+                return;
+              }
+              // ArrowDown — into suggestions list, or step forward in shell history.
+              if (event.key === "ArrowDown") {
+                if (suggestions.length > 0) {
+                  event.preventDefault();
+                  setSuggestionIndex((current) =>
+                    Math.min(suggestions.length - 1, current + 1)
+                  );
+                  return;
+                }
+                if (historyIndex !== null) {
+                  event.preventDefault();
+                  const next = historyIndex + 1;
+                  if (next >= history.length) {
+                    setInput("");
+                    setHistoryIndex(null);
+                  } else {
+                    setInput(history[next]);
+                    setHistoryIndex(next);
+                  }
+                }
+                return;
+              }
+              // ArrowUp — through suggestions, or backward in shell history.
+              if (event.key === "ArrowUp") {
+                if (suggestions.length > 0) {
+                  event.preventDefault();
+                  setSuggestionIndex((current) => Math.max(0, current - 1));
+                  return;
+                }
+                if (history.length > 0) {
+                  event.preventDefault();
+                  const next = historyIndex === null ? history.length - 1 : Math.max(0, historyIndex - 1);
+                  setInput(history[next]);
+                  setHistoryIndex(next);
+                }
+              }
+            }}
+            placeholder={running ? "Running…" : "Run a command (Tab autocomplete, ↑↓ history)"}
+            disabled={running}
+            spellCheck={false}
+            autoComplete="off"
+            className="h-7 min-w-0 flex-1 border-none bg-transparent font-mono text-[11.5px] text-[#ededed] outline-none placeholder:text-[#666] disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={running || !input.trim()}
+            title="Run"
+            className="grid h-7 w-7 place-items-center rounded text-[#9a9a9a] transition hover:bg-[#262626] hover:text-[#ededed] disabled:opacity-30"
+          >
+            {running ? <Square size={11} /> : <Play size={11} />}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

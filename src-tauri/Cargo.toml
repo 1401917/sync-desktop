@@ -1,6 +1,6 @@
 [package]
 name = "sync"
-version = "0.3.0"
+version = "0.4.0"
 description = "Sync desktop AI coding workspace"
 authors = ["Sync"]
 edition = "2021"

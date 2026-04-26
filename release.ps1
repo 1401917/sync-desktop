@@ -5,7 +5,7 @@
 
 [CmdletBinding()]
 param(
-  [string]$Version = "0.3.0",
+  [string]$Version = "0.4.0",
   [switch]$SkipBuild,
   [switch]$SkipPush,
   [switch]$SkipRelease,
@@ -65,22 +65,47 @@ if (-not $changes) {
   $msgLines = @()
   $msgLines += ("Release v" + $Version)
   $msgLines += ""
-  $msgLines += "- Codex-style sidebar (4 primary actions + Projects + Tools collapsible + Settings)"
-  $msgLines += "- Active Tasks panel hidden until a real session starts"
-  $msgLines += "- Neutral palette (no more blue accents)"
-  $msgLines += "- Top-bar menus (File / Edit / View / Window / Help) functional"
-  $msgLines += "- Real OpenAI-compatible chat completions with NVIDIA NIM, OpenAI, Groq, Together"
-  $msgLines += "- Multi-turn chat history replayed to the model on every turn"
+  $msgLines += "Coding workspace foundation:"
+  $msgLines += "- Command Palette (Ctrl+Shift+P) — VS Code-style compact bar, 27+ built-in commands across AI/Project/Build/Git/Terminal/View/Settings/MCP categories with risk badges"
+  $msgLines += "- Bottom Panel (Ctrl+J) with Terminal / Problems / Output tabs"
+  $msgLines += "- Real Rust terminal command runner (run_terminal_command) with destructive-token blocking"
+  $msgLines += "- Terminal autocomplete: 34 git/gh/npm/cargo/tsc/Windows-shell suggestions with Tab + arrow navigation"
+  $msgLines += "- Terminal command history (50 last) with arrow-up/down recall"
+  $msgLines += "- Problems panel parses tsc/cargo/generic error output into structured items with Ask AI to fix"
+  $msgLines += "- View menu now lists Terminal, Command Palette, Toggle Sidebar, Toggle Bottom Panel, Fullscreen, Reload"
+  $msgLines += ""
+  $msgLines += "AI tool calling:"
+  $msgLines += "- read_file_tool, list_directory_tool, write_file_tool, apply_patch_tool, delete_file_tool exposed as Tauri commands"
+  $msgLines += "- ensure_under_root canonicalization + sensitive-token allowlist (no .env, .key, id_rsa, credentials, system paths)"
+  $msgLines += "- Auto-apply pipeline: AI emits sync:path= and sync:delete= markers, Sync writes/deletes files automatically with snapshots"
+  $msgLines += "- HARD RULES system prompt forces sync:path / sync:delete usage so the user never copy-pastes code manually"
+  $msgLines += "- File deletions: snapshot before delete, audit log entry, blocked inside .git/node_modules/target/dist"
+  $msgLines += ""
+  $msgLines += "Chat UX:"
+  $msgLines += "- Enter sends prompt, Shift+Enter inserts newline (matches Cursor/ChatGPT/Claude); IME-safe"
+  $msgLines += "- Save-to-file button removed from code blocks; AI writes files directly via auto-apply"
+  $msgLines += "- Real chat bubbles, Markdown rendering, animated Thinking indicator with rotating stages and elapsed seconds"
+  $msgLines += "- Multi-turn history replayed to model"
+  $msgLines += ""
+  $msgLines += "Navigation & shell:"
+  $msgLines += "- Title-bar Back / Forward arrows wired to a real navigation history stack"
+  $msgLines += "- Working File/Edit/View/Window/Help dropdowns (New Window, Undo/Redo, Cut/Copy/Paste, Reload, etc.)"
+  $msgLines += "- Codex-style sidebar (primary actions + Projects + Tools collapsible + Settings)"
+  $msgLines += "- Active Tasks panel hidden outside session/tasks views; neutral grayscale palette"
+  $msgLines += "- TopBar safe in browser-preview workflow (lazy Tauri imports, no metadata crash)"
+  $msgLines += "- Real History view with relative timestamps and date buckets"
+  $msgLines += ""
+  $msgLines += "Provider, security, persistence:"
+  $msgLines += "- OpenAI-compatible chat completions for NVIDIA NIM, OpenAI, Groq, Together"
   $msgLines += "- API keys persisted to %APPDATA%\Sync\provider_keys\; SQLite stores only masked metadata"
   $msgLines += "- NVIDIA auto-config via SYNC_DEFAULT_NVIDIA_KEY env from gitignored .cargo/config.toml"
-  $msgLines += "- Fixed SQL Got 3 needed 4 in INSERT INTO task_lists"
-  $msgLines += "- Fixed app freeze: Tauri commands moved to async + spawn_blocking"
-  $msgLines += "- Real chat UI with bubbles, Markdown rendering, animated thinking indicator"
-  $msgLines += "- Real History view with relative timestamps and grouped buckets"
-  $msgLines += "- Open Project Folder button auto-hides into a green opened badge"
-  $msgLines += "- Better GitHub Device Flow error messages"
-  $msgLines += "- TopBar safe in browser-preview workflow"
+  $msgLines += "- Tauri commands moved to async + spawn_blocking (no more Sync (Not Responding))"
   $msgLines += "- .gitignore excludes *.key, secrets.local.*, .cargo/config.toml"
+  $msgLines += ""
+  $msgLines += "Release pipeline:"
+  $msgLines += "- release.ps1 launches the new exe before network/git steps so a flaky push never blocks the user from seeing the build"
+  $msgLines += "- Auto-detects existing GitHub release and uploads assets with --clobber instead of failing"
+  $msgLines += "- Kills any running sync.exe before the rebuild so Cargo can replace it"
 
   $commitMsg = $msgLines -join [Environment]::NewLine
   git commit -m $commitMsg

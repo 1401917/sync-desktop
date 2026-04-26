@@ -106,83 +106,75 @@ export function CommandPalette({ open, onClose, context }: CommandPaletteProps) 
     }
   }
 
+  // VS Code-style quick-input: a thin bar pinned near the top, with a
+  // shallow autocomplete dropdown only when the user is typing or
+  // navigating. No giant modal, no description blob — just title +
+  // optional shortcut, like VS Code's command bar.
+  const showList = query.trim().length > 0 || activeIndex > 0;
+  const trimmedList = showList ? visibleCommands.slice(0, 8) : [];
+
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/60 px-4 pt-[14vh]"
+      className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/40 px-4 pt-[6vh]"
       onClick={onClose}
       onKeyDown={onKeyDown}
       tabIndex={-1}
     >
       <div
-        className="w-full max-w-[640px] overflow-hidden rounded-xl border border-[#2c2c2c] bg-[#1a1a1a] shadow-[0_25px_60px_rgba(0,0,0,0.55)]"
+        className="w-full max-w-[520px]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-[#252525] px-3.5 py-2.5">
-          <Search size={14} className="text-[#7a7a7a]" />
+        <div className="flex items-center gap-2 rounded-md border border-[#2c2c2c] bg-[#1d1d1d] px-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.55)]">
+          <Search size={12} className="text-[#7a7a7a]" />
           <input
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Type a command or search…"
-            className="h-7 min-w-0 flex-1 border-none bg-transparent text-[13px] text-[#ededed] outline-none placeholder:text-[#666]"
+            placeholder="Type a command…"
+            className="h-8 min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#ededed] outline-none placeholder:text-[#777]"
           />
-          <span className="rounded border border-[#2d2d2d] px-1.5 py-0.5 text-[10px] text-[#7a7a7a]">
+          <span className="rounded border border-[#2d2d2d] px-1.5 py-0.5 text-[9.5px] text-[#7a7a7a]">
             Esc
           </span>
         </div>
 
-        <div ref={listRef} className="max-h-[50vh] overflow-y-auto py-1.5">
-          {visibleCommands.length === 0 ? (
-            <div className="px-4 py-6 text-center text-[12px] text-[#7a7a7a]">
-              No commands match “{query}”.
-            </div>
-          ) : (
-            visibleCommands.map((command, index) => (
+        {showList && trimmedList.length > 0 ? (
+          <div
+            ref={listRef}
+            className="mt-1 overflow-hidden rounded-md border border-[#2c2c2c] bg-[#1a1a1a] shadow-[0_18px_40px_rgba(0,0,0,0.45)]"
+          >
+            {trimmedList.map((command, index) => (
               <button
                 key={command.id}
                 data-index={index}
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => execute(command)}
-                className={`flex w-full items-center gap-3 px-3.5 py-2 text-left transition ${
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left transition ${
                   index === activeIndex ? "bg-[#262626]" : "bg-transparent"
                 }`}
               >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-[#2a2a2a] bg-[#1f1f1f]">
-                  {command.risk === "critical" || command.risk === "high" ? (
-                    <ShieldAlert size={12} className={RISK_TONE[command.risk]} />
-                  ) : (
-                    <Zap size={12} className={RISK_TONE[command.risk]} />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-[12.5px] font-medium text-[#ededed]">
-                      {command.title}
-                    </span>
-                    <span className="rounded-full border border-[#2a2a2a] bg-[#191919] px-1.5 py-0.5 text-[9.5px] uppercase tracking-wider text-[#8a8a8a]">
-                      {command.category}
-                    </span>
-                  </span>
-                  {command.description ? (
-                    <span className="mt-0.5 block truncate text-[11px] text-[#7e7e7e]">
-                      {command.description}
+                {command.risk === "critical" || command.risk === "high" ? (
+                  <ShieldAlert size={11} className={`${RISK_TONE[command.risk]} shrink-0`} />
+                ) : (
+                  <Zap size={11} className={`${RISK_TONE[command.risk]} shrink-0`} />
+                )}
+                <span className="truncate text-[12px] text-[#ededed]">{command.title}</span>
+                <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] text-[#7a7a7a]">{command.category}</span>
+                  {command.shortcut ? (
+                    <span className="rounded border border-[#2d2d2d] bg-[#171717] px-1.5 py-0.5 text-[9.5px] text-[#9a9a9a]">
+                      {command.shortcut}
                     </span>
                   ) : null}
                 </span>
-                {command.shortcut ? (
-                  <span className="rounded border border-[#2d2d2d] bg-[#171717] px-1.5 py-0.5 text-[10px] text-[#9a9a9a]">
-                    {command.shortcut}
-                  </span>
-                ) : null}
               </button>
-            ))
-          )}
-        </div>
-
-        <div className="border-t border-[#252525] bg-[#161616] px-3.5 py-1.5 text-[10px] text-[#6e6e6e]">
-          ↑ ↓ navigate · ⏎ run · esc close · {visibleCommands.length} command
-          {visibleCommands.length === 1 ? "" : "s"}
-        </div>
+            ))}
+          </div>
+        ) : showList ? (
+          <div className="mt-1 rounded-md border border-[#2c2c2c] bg-[#1a1a1a] px-3 py-2 text-[11.5px] text-[#7a7a7a]">
+            No matches.
+          </div>
+        ) : null}
       </div>
     </div>
   );

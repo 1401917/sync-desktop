@@ -1,7 +1,7 @@
 # Sync Desktop
 
 [![Sync CI](https://github.com/1401917/sync-desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/1401917/sync-desktop/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.3.0-success)
+![version](https://img.shields.io/badge/version-0.4.0-success)
 
 Sync is a Windows desktop AI coding workspace built with Tauri, Rust, React, TypeScript, Tailwind CSS, and SQLite.
 

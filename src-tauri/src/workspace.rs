@@ -656,7 +656,85 @@ fn apply_generated_file_artifacts(
         .map_err(|error| format!("Unable to load project root for apply: {error}"))?;
     let root = PathBuf::from(root);
     let artifacts = extract_file_artifacts(assistant_message);
+    let deletions = extract_file_deletions(assistant_message);
     let mut applied = Vec::new();
+
+    // Apply file deletions first so a new write at the same path is not
+    // immediately removed by a stale delete marker.
+    for relative_path in deletions {
+        let target = safe_project_target(&root, &relative_path)?;
+        if security::is_sensitive_path(&target) {
+            history::record_audit_event(
+                connection,
+                "auto_apply_sensitive_delete_blocked",
+                &target.display().to_string(),
+                "High",
+                "blocked",
+                "Generated delete marker targeted a sensitive path",
+            )?;
+            continue;
+        }
+        let normalized = relative_path.replace('\\', "/").to_lowercase();
+        let blocked = [".git/", "node_modules/", "target/", "dist/", "src-tauri/target/"];
+        if blocked.iter().any(|seg| {
+            normalized.starts_with(seg) || normalized.contains(seg)
+        }) {
+            history::record_audit_event(
+                connection,
+                "auto_apply_protected_dir_delete_blocked",
+                &target.display().to_string(),
+                "High",
+                "blocked",
+                "Generated delete marker targeted a build/dependency directory",
+            )?;
+            continue;
+        }
+        if !target.exists() {
+            continue;
+        }
+        if !target.is_file() {
+            continue;
+        }
+        let snapshot_id = snapshot_file(connection, project_id, &target)?;
+        if let Err(error) = fs::remove_file(&target) {
+            history::record_audit_event(
+                connection,
+                "auto_apply_delete_failed",
+                &target.display().to_string(),
+                "Medium",
+                "failed",
+                &format!("Delete failed: {error}"),
+            )?;
+            continue;
+        }
+        let change_id = Uuid::new_v4().to_string();
+        connection
+            .execute(
+                "INSERT INTO file_changes (
+                    id, project_id, session_id, file_path, change_type, status,
+                    snapshot_id_before, summary, applied_at, metadata_json
+                 ) VALUES (?1, ?2, ?3, ?4, 'delete', 'applied', ?5, ?6, CURRENT_TIMESTAMP, ?7)",
+                params![
+                    change_id,
+                    project_id,
+                    session_id,
+                    target.display().to_string(),
+                    snapshot_id,
+                    "Deleted file requested by AI sync:delete marker",
+                    serde_json::json!({ "source": "ai_generated_delete" }).to_string()
+                ],
+            )
+            .map_err(|error| format!("Unable to record delete change: {error}"))?;
+        history::create_history_event(
+            connection,
+            "file_change_applied",
+            "AI delete applied",
+            &target.display().to_string(),
+            "Completed",
+            "warning",
+        )?;
+        applied.push(format!("(deleted) {relative_path}"));
+    }
 
     for (relative_path, content) in artifacts {
         let target = safe_project_target(&root, &relative_path)?;
@@ -822,6 +900,38 @@ fn parse_sync_path(line: &str) -> Option<String> {
     } else {
         Some(path)
     }
+}
+
+fn parse_sync_delete(line: &str) -> Option<String> {
+    let marker = "sync:delete=";
+    let index = line.find(marker)?;
+    let path = line[index + marker.len()..]
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
+/// Extract `sync:delete=...` markers from the AI response. The AI can emit
+/// them either as plain lines (most common, lowest token cost) or inside
+/// fenced code blocks. We accept both. Each unique path is returned once.
+fn extract_file_deletions(source: &str) -> Vec<String> {
+    use std::collections::HashSet;
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for line in source.lines() {
+        if let Some(path) = parse_sync_delete(line) {
+            if seen.insert(path.clone()) {
+                out.push(path);
+            }
+        }
+    }
+    out
 }
 
 fn open_connection(path: &Path) -> Result<Connection, String> {
@@ -1104,14 +1214,42 @@ fn call_openai_compatible(
     let mut messages: Vec<serde_json::Value> = Vec::with_capacity(bounded_history.len() + 2);
     messages.push(serde_json::json!({
         "role": "system",
-        "content": "You are Sync, a desktop AI coding workspace assistant. \
-                    Work like a serious coding workspace, not a chat demo. When the user asks you \
-                    to build or fix files in the opened project, return complete replacement file \
-                    contents in fenced code blocks and make the first line of each block \
-                    `// sync:path=relative/path` (or `# sync:path=relative/path` for non-C-like files). \
-                    Sync will apply only safe text files inside the opened folder. Do not target \
-                    secrets, credentials, .env files, system paths, deletes, force pushes, or \
-                    destructive commands. Also include a concise summary of what changed."
+        "content": "You are Sync, a serious desktop AI coding workspace agent — not a chat \
+                    demo. Behave like a senior engineer who actually edits the user's project.\n\n\
+                    HARD RULES FOR FILE OUTPUT:\n\
+                    1. When the user asks for code, ALWAYS produce the complete replacement file \
+                       content inside a fenced code block. The FIRST LINE of every code block \
+                       must be exactly `// sync:path=relative/path/inside/project` for C-like \
+                       languages (TS/JS/Rust/Java/Go/CSS/etc.) or \
+                       `# sync:path=relative/path/inside/project` for Python/shell/PowerShell/YAML/TOML/etc. \
+                       Sync auto-writes that file to disk — the user does NOT click a save button. \
+                       Skipping the marker means the user gets a wall of text they can't use.\n\
+                    2. Use ONE block per file. Multiple files = multiple blocks, each with its own \
+                       sync:path marker.\n\
+                    3. Never use a sync:path that points outside the opened project, into secrets \
+                       (.env, .key, credentials, id_rsa, secrets.local), or into system paths.\n\
+                    4. To DELETE a file, emit a plain line on its own (not inside a code block):\n\
+                       `sync:delete=relative/path/inside/project`\n\
+                       Sync auto-removes that file. The user does NOT click delete. Use this only \
+                       when the user explicitly asked to remove the file or the file is genuinely \
+                       obsolete after a refactor. Never delete .git, node_modules, target, dist, \
+                       package.json, package-lock.json, Cargo.toml, Cargo.lock, tsconfig.json, \
+                       or any file whose deletion would break the build.\n\n\
+                    HOW TO RESPOND:\n\
+                    - Open with a 1-3 sentence plan describing what you'll do.\n\
+                    - Emit the file blocks with sync:path markers.\n\
+                    - End with a `Changes` section listing each file and what changed (1 line each).\n\
+                    - For purely informational questions (no file changes), answer plainly without \
+                       sync:path markers.\n\n\
+                    ENGINEERING DISCIPLINE:\n\
+                    - Match the project's existing style and stack.\n\
+                    - Don't fabricate APIs you don't recognize. If you need to inspect a file, say so.\n\
+                    - Validate after writing: tell the user the exact command to run \
+                       (e.g. `npm run tauri:dev`, `cargo check`, `npm test`).\n\
+                    - If the user reports a build/test failure, ask for the exact error output, \
+                       reason about likely cause, propose a minimal patch, and emit the corrected \
+                       file blocks again.\n\
+                    - Keep summaries terse — the user values working code, not prose."
     }));
 
     // Replay a bounded slice of prior turns. Rust also bounds history so a
