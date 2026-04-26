@@ -7,17 +7,12 @@ import type {
 } from "./debug";
 import type { DebugAttempt } from "./pipeline";
 
-// Re-export the supporting types so consumers of the bridge only need
-// to import from one module.
-export type { DebugAttempt, RepairAction, RepairPlan } from "./debug";
+export type { RepairAction, RepairPlan } from "./debug";
 export type { ErrorSeverity, ErrorSource, RepairActionKind } from "./debug";
+export type { DebugAttempt } from "./pipeline";
 
 export type ValidationOutcome = "passed" | "failed" | "noop";
 
-/**
- * A single Problems-Panel-shaped record. One Problem per distinct error group
- * (cascades produce derived=true entries — UI can hide or fade them).
- */
 export interface Problem {
   id: string;
   source: ErrorSource;
@@ -46,10 +41,6 @@ export interface ValidationReport {
   attempt?: DebugAttempt;
   plan?: RepairPlan;
   problems: Problem[];
-  /**
-   * Actions that don't attach to a single file/line — e.g. cascade revert-change.
-   * Render at the top of a Problems Panel as banner-style suggestions.
-   */
   topLevelActions: RepairAction[];
   summary: ValidationSummary;
 }
