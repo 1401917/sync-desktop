@@ -1,7 +1,5 @@
-# Sync release pipeline. Avoids here-strings (which were tripping
-# PowerShell's parser on $Version: drive-qualified parsing) and uses
-# only simple double-quoted strings with ${var} delimiters everywhere a
-# variable touches punctuation.
+# Sync release pipeline.
+# Safe PowerShell release script for building, tagging, pushing, and publishing Sync.
 
 [CmdletBinding()]
 param(
@@ -27,16 +25,77 @@ function Ok($message) {
   Write-Host ("    " + $message) -ForegroundColor Green
 }
 
+function Warn($message) {
+  Write-Host ("    WARNING: " + $message) -ForegroundColor Yellow
+}
+
+function Assert-Command($name, $installHint) {
+  $cmd = Get-Command $name -ErrorAction SilentlyContinue
+  if (-not $cmd) {
+    throw ("Missing required command: " + $name + ". " + $installHint)
+  }
+}
+
+function Assert-LastExit($message) {
+  if ($LASTEXITCODE -ne 0) {
+    throw $message
+  }
+}
+
+function Get-SyncInstaller {
+  $bundleRoot = Join-Path $RepoRoot "src-tauri\target\release\bundle"
+
+  if (-not (Test-Path $bundleRoot)) {
+    return $null
+  }
+
+  $candidates = @()
+
+  $candidates += Get-ChildItem -Path $bundleRoot -Recurse -File -Filter "*.exe" -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.FullName -match "\\nsis\\" -or
+      $_.Name -match "setup" -or
+      $_.Name -match "sync"
+    }
+
+  if ($candidates.Count -eq 0) {
+    $candidates += Get-ChildItem -Path $bundleRoot -Recurse -File -Filter "*.msi" -ErrorAction SilentlyContinue |
+      Where-Object {
+        $_.FullName -match "\\msi\\" -or
+        $_.Name -match "sync"
+      }
+  }
+
+  if ($candidates.Count -eq 0) {
+    return $null
+  }
+
+  return $candidates |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+}
+
+function Write-CommitMessageFile($content) {
+  $path = Join-Path $env:TEMP ("sync-release-commit-" + [Guid]::NewGuid().ToString("N") + ".txt")
+  [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
+  return $path
+}
+
 # --- 1. Sanity checks ---
 Section "Pre-flight checks"
 
+Assert-Command "git" "Install Git and make sure it is available in PATH."
+Assert-Command "npm" "Install Node.js/npm and make sure npm is available in PATH."
+
 git rev-parse --is-inside-work-tree | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "Not a git repository. Run inside D:\Projects\codex." }
+Assert-LastExit "Not a git repository. Run inside D:\Projects\codex."
 
 $branch = git rev-parse --abbrev-ref HEAD
+Assert-LastExit "Unable to resolve current git branch."
 Ok ("Current branch: " + $branch)
 
 $remote = git remote get-url origin
+Assert-LastExit "Unable to resolve git origin remote."
 Ok ("Origin: " + $remote)
 
 $staged = git diff --cached --name-only
@@ -54,19 +113,26 @@ Ok "Local secrets file is properly gitignored."
 Section "Staging changes"
 
 git add -A
+Assert-LastExit "git add failed."
+
+$stagedAfterAdd = git diff --cached --name-only
+if ($stagedAfterAdd -match "src-tauri/\.cargo/config\.toml") {
+  throw "ABORT: src-tauri/.cargo/config.toml became staged after git add -A. Unstage it before continuing."
+}
+
 $changes = git diff --cached --name-only
+
 if (-not $changes) {
   Write-Host "    No staged changes; assuming the version bump was already committed." -ForegroundColor Yellow
 } else {
   Write-Host "Files staged:"
   $changes | ForEach-Object { Write-Host ("  " + $_) }
 
-  # Build the commit message line by line. No here-string anywhere.
   $msgLines = @()
   $msgLines += ("Release v" + $Version)
   $msgLines += ""
   $msgLines += "Coding workspace foundation:"
-  $msgLines += "- Command Palette (Ctrl+Shift+P) — VS Code-style compact bar, 27+ built-in commands across AI/Project/Build/Git/Terminal/View/Settings/MCP categories with risk badges"
+  $msgLines += "- Command Palette (Ctrl+Shift+P) - VS Code-style compact bar, 27+ built-in commands across AI/Project/Build/Git/Terminal/View/Settings/MCP categories with risk badges"
   $msgLines += "- Bottom Panel (Ctrl+J) with Terminal / Problems / Output tabs"
   $msgLines += "- Real Rust terminal command runner (run_terminal_command) with destructive-token blocking"
   $msgLines += "- Terminal autocomplete: 34 git/gh/npm/cargo/tsc/Windows-shell suggestions with Tab + arrow navigation"
@@ -82,40 +148,53 @@ if (-not $changes) {
   $msgLines += "- File deletions: snapshot before delete, audit log entry, blocked inside .git/node_modules/target/dist"
   $msgLines += ""
   $msgLines += "Chat UX:"
-  $msgLines += "- Enter sends prompt, Shift+Enter inserts newline (matches Cursor/ChatGPT/Claude); IME-safe"
+  $msgLines += "- Enter sends prompt, Shift+Enter inserts newline; IME-safe"
   $msgLines += "- Save-to-file button removed from code blocks; AI writes files directly via auto-apply"
   $msgLines += "- Real chat bubbles, Markdown rendering, animated Thinking indicator with rotating stages and elapsed seconds"
   $msgLines += "- Multi-turn history replayed to model"
   $msgLines += ""
   $msgLines += "Navigation & shell:"
   $msgLines += "- Title-bar Back / Forward arrows wired to a real navigation history stack"
-  $msgLines += "- Working File/Edit/View/Window/Help dropdowns (New Window, Undo/Redo, Cut/Copy/Paste, Reload, etc.)"
-  $msgLines += "- Codex-style sidebar (primary actions + Projects + Tools collapsible + Settings)"
+  $msgLines += "- Working File/Edit/View/Window/Help dropdowns"
+  $msgLines += "- Codex-style sidebar"
   $msgLines += "- Active Tasks panel hidden outside session/tasks views; neutral grayscale palette"
-  $msgLines += "- TopBar safe in browser-preview workflow (lazy Tauri imports, no metadata crash)"
+  $msgLines += "- TopBar safe in browser-preview workflow"
   $msgLines += "- Real History view with relative timestamps and date buckets"
   $msgLines += ""
   $msgLines += "Provider, security, persistence:"
   $msgLines += "- OpenAI-compatible chat completions for NVIDIA NIM, OpenAI, Groq, Together"
   $msgLines += "- API keys persisted to %APPDATA%\Sync\provider_keys\; SQLite stores only masked metadata"
   $msgLines += "- NVIDIA auto-config via SYNC_DEFAULT_NVIDIA_KEY env from gitignored .cargo/config.toml"
-  $msgLines += "- Tauri commands moved to async + spawn_blocking (no more Sync (Not Responding))"
+  $msgLines += "- Tauri commands moved to async + spawn_blocking"
   $msgLines += "- .gitignore excludes *.key, secrets.local.*, .cargo/config.toml"
   $msgLines += ""
   $msgLines += "Release pipeline:"
-  $msgLines += "- release.ps1 launches the new exe before network/git steps so a flaky push never blocks the user from seeing the build"
+  $msgLines += "- release.ps1 launches the new exe before network/git steps"
   $msgLines += "- Auto-detects existing GitHub release and uploads assets with --clobber instead of failing"
   $msgLines += "- Kills any running sync.exe before the rebuild so Cargo can replace it"
 
   $commitMsg = $msgLines -join [Environment]::NewLine
-  git commit -m $commitMsg
-  if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
-  Ok "Commit created."
+  $tmpCommitMsg = $null
+
+  try {
+    $tmpCommitMsg = Write-CommitMessageFile $commitMsg
+    git commit -F $tmpCommitMsg
+    Assert-LastExit "git commit failed."
+    Ok "Commit created."
+  } finally {
+    if ($tmpCommitMsg -and (Test-Path $tmpCommitMsg)) {
+      Remove-Item $tmpCommitMsg -Force -ErrorAction SilentlyContinue
+    }
+  }
 }
 
 # --- 3. Build the Windows release ---
+$exe = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
+$installer = $null
+
 if (-not $SkipBuild) {
   Section "Closing any running Sync instance"
+
   $running = Get-Process -Name "sync" -ErrorAction SilentlyContinue
   if ($running) {
     Write-Host ("    Found " + $running.Count + " running sync process(es); stopping...") -ForegroundColor Yellow
@@ -126,38 +205,45 @@ if (-not $SkipBuild) {
     Ok "No running sync.exe."
   }
 
-  Section "Building Tauri release (this can take a few minutes)"
+  Section "Building Tauri release"
   npm run tauri:build
-  if ($LASTEXITCODE -ne 0) { throw "Tauri build failed." }
+  Assert-LastExit "Tauri build failed."
 
-  $exe = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
-  if (-not (Test-Path $exe)) { throw ("Build finished but sync.exe is missing at " + $exe) }
+  if (-not (Test-Path $exe)) {
+    throw ("Build finished but sync.exe is missing at " + $exe)
+  }
+
   Ok ("sync.exe built: " + $exe)
 
-  $installer = Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -Filter "*setup*.exe" -ErrorAction SilentlyContinue |
-    Select-Object -First 1
+  $installer = Get-SyncInstaller
   if ($installer) {
     Ok ("Installer: " + $installer.FullName)
   } else {
-    Write-Warning "No NSIS installer was produced. Will skip installer upload."
+    Warn "No NSIS/MSI installer was found. Will skip installer upload."
+  }
+} else {
+  if (Test-Path $exe) {
+    Ok ("Using existing sync.exe: " + $exe)
+  }
+
+  $installer = Get-SyncInstaller
+  if ($installer) {
+    Ok ("Using existing installer: " + $installer.FullName)
   }
 }
 
-# --- 4. Launch the new build EARLY, so network failures below cannot
-#        prevent the user from seeing their freshly built app. ---
+# --- 4. Launch the new build early ---
 if ($Launch) {
-  $exe = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
   if (Test-Path $exe) {
     Section "Launching new Sync build"
     Start-Process -FilePath $exe
     Ok ("Launched: " + $exe)
   } else {
-    Write-Warning ("sync.exe not found at " + $exe + "; cannot launch.")
+    Warn ("sync.exe not found at " + $exe + "; cannot launch.")
   }
 }
 
-# All later steps are network/git related. Switch to Continue so a network
-# hiccup does NOT abort the script before printing the final summary.
+# Network/git publishing should not hide the local build result.
 $ErrorActionPreference = "Continue"
 $releaseProblems = @()
 
@@ -167,11 +253,11 @@ Section ("Tagging " + $tagName)
 
 $existingTag = git tag --list $tagName
 if ($existingTag) {
-  Write-Warning ("Tag " + $tagName + " already exists locally; skipping git tag.")
+  Warn ("Tag " + $tagName + " already exists locally; skipping git tag.")
 } else {
   git tag -a $tagName -m ("Sync " + $tagName)
   if ($LASTEXITCODE -ne 0) {
-    Write-Warning "git tag failed."
+    Warn "git tag failed."
     $releaseProblems += "git tag failed"
   } else {
     Ok ("Tagged " + $tagName)
@@ -181,9 +267,10 @@ if ($existingTag) {
 # --- 6. Push branch + tag ---
 if (-not $SkipPush) {
   Section "Pushing to GitHub"
+
   git push origin $branch
   if ($LASTEXITCODE -ne 0) {
-    Write-Warning "git push branch failed."
+    Warn "git push branch failed."
     $releaseProblems += "git push branch failed"
   } else {
     Ok "Branch pushed."
@@ -191,7 +278,7 @@ if (-not $SkipPush) {
 
   git push origin $tagName 2>&1 | Out-Host
   if ($LASTEXITCODE -ne 0) {
-    Write-Warning "git push tag failed (often safe to ignore if the tag already exists on origin)."
+    Warn "git push tag failed. This may be safe if the tag already exists on origin."
     $releaseProblems += "git push tag failed"
   } else {
     Ok "Tag pushed."
@@ -203,49 +290,72 @@ if (-not $SkipRelease) {
   Section "Creating GitHub release"
 
   $ghAvailable = $false
-  try {
-    gh --version *> $null
-    $ghAvailable = ($LASTEXITCODE -eq 0)
-  } catch {
-    $ghAvailable = $false
+  $ghCommand = Get-Command "gh" -ErrorAction SilentlyContinue
+
+  if ($ghCommand) {
+    try {
+      gh --version *> $null
+      $ghAvailable = ($LASTEXITCODE -eq 0)
+    } catch {
+      $ghAvailable = $false
+    }
   }
 
   if (-not $ghAvailable) {
-    Write-Warning "gh CLI is not available. Skipping the GitHub release step."
+    Warn "gh CLI is not available. Skipping the GitHub release step."
     Write-Host "    Install with: winget install GitHub.cli" -ForegroundColor Yellow
     Write-Host ("    Or create the release manually at: https://github.com/1401917/sync-desktop/releases/new?tag=" + $tagName)
   } else {
     $notes = ("See CHANGELOG.md for the full list of changes in " + $tagName + ".")
 
     $assets = @()
-    $exePath = Join-Path $RepoRoot "src-tauri\target\release\sync.exe"
-    if (Test-Path $exePath) { $assets += $exePath }
-    $installerPath = Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -Filter "*setup*.exe" -ErrorAction SilentlyContinue |
-      Select-Object -First 1 -ExpandProperty FullName
-    if ($installerPath) { $assets += $installerPath }
+    if (Test-Path $exe) {
+      $assets += $exe
+    }
 
-    # If the release already exists on GitHub, upload assets to it with
-    # --clobber instead of failing.
+    if (-not $installer) {
+      $installer = Get-SyncInstaller
+    }
+
+    if ($installer) {
+      $assets += $installer.FullName
+    }
+
     gh release view $tagName *> $null
     $releaseExists = ($LASTEXITCODE -eq 0)
 
     if ($releaseExists) {
-      Write-Warning ("Release " + $tagName + " already exists on GitHub; uploading/replacing assets.")
+      Warn ("Release " + $tagName + " already exists on GitHub; uploading/replacing assets.")
       if ($assets.Count -gt 0) {
         & gh release upload $tagName @assets --clobber
         if ($LASTEXITCODE -ne 0) {
-          Write-Warning ("gh release upload failed (exit " + $LASTEXITCODE + "). Skipping assets but keeping the release.")
+          Warn ("gh release upload failed. Exit code: " + $LASTEXITCODE)
           $releaseProblems += "gh release upload failed"
         } else {
           Ok ("Uploaded assets to existing release " + $tagName + ".")
         }
+      } else {
+        Warn "No release assets found to upload."
+        $releaseProblems += "no release assets found"
       }
     } else {
-      $createArgs = @("release", "create", $tagName, "--title", ("Sync " + $tagName), "--notes", $notes)
-      if ($assets.Count -gt 0) { $createArgs += $assets }
+      $createArgs = @(
+        "release",
+        "create",
+        $tagName,
+        "--title",
+        ("Sync " + $tagName),
+        "--notes",
+        $notes
+      )
+
+      if ($assets.Count -gt 0) {
+        $createArgs += $assets
+      }
+
       & gh @createArgs
       if ($LASTEXITCODE -ne 0) {
-        Write-Warning ("gh release create failed (exit " + $LASTEXITCODE + "). The build is still on disk and pushed; create the release manually if needed.")
+        Warn ("gh release create failed. Exit code: " + $LASTEXITCODE)
         $releaseProblems += "gh release create failed"
       } else {
         Ok ("GitHub release " + $tagName + " created.")
@@ -255,6 +365,7 @@ if (-not $SkipRelease) {
 }
 
 Section "Done"
+
 if ($releaseProblems.Count -gt 0) {
   Write-Host ("Sync " + $tagName + " built. Some publish steps had issues: " + ($releaseProblems -join ", ")) -ForegroundColor Yellow
   Write-Host ("Repo: " + $remote) -ForegroundColor Yellow
