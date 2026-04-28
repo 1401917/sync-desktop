@@ -298,3 +298,44 @@ pub struct AiJobUpdate {
     pub applied_files: Vec<String>,
     pub tasks: Vec<TaskSummary>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct DiffPlanOp {
+    pub path: String,
+    pub kind: String, // "create", "update", "delete"
+    pub before_content: Option<String>,
+    pub after_content: Option<String>,
+    pub blocked: bool,
+    pub block_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApprovedOp {
+    pub path: String,
+    pub kind: String,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApplyError {
+    pub path: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApplyBlocked {
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApplyResult {
+    pub applied: Vec<String>,
+    pub errors: Vec<ApplyError>,
+    pub blocked: Vec<ApplyBlocked>,
+}

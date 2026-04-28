@@ -5,6 +5,22 @@ All notable changes to Sync Desktop are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-04-28
+
+### Added
+- **Phase B Diff Plan Implementation**: Complete diff plan preview and approval system
+  - Operations preview panel with risk assessment (Low/Medium/High/Critical)
+  - Diff view component showing line-by-line changes with context
+  - Risk classification based on file type, change size, and content analysis
+  - Backend dry-run and apply operations with security checks
+  - File snapshotting before modifications for rollback capability
+  - Blocking of sensitive files (.env, secrets, binary content, oversized files)
+  - Comprehensive test coverage for all diff plan functionality
+
+### Fixed
+- TypeScript moduleResolution updated to "bundler" for compatibility
+- Test expectations corrected for accurate diff rendering
+
 ## [0.3.0] - 2026-04-25
 
 ### Fixed

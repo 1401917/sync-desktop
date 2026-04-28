@@ -7,9 +7,9 @@ import type {
 } from "./debug";
 import type { DebugAttempt } from "./pipeline";
 
+export type { DebugAttempt } from "./pipeline";
 export type { RepairAction, RepairPlan } from "./debug";
 export type { ErrorSeverity, ErrorSource, RepairActionKind } from "./debug";
-export type { DebugAttempt } from "./pipeline";
 
 export type ValidationOutcome = "passed" | "failed" | "noop";
 

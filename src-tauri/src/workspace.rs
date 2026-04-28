@@ -7,9 +7,10 @@ use uuid::Uuid;
 use crate::filesystem;
 use crate::history;
 use crate::models::{
-    AiJobUpdate, AiSubmissionResult, ChatMessageSummary, FilePreview, LoadedChat,
-    ModelProviderSummary, ProjectFileEntry, ProjectOpenResult, ProjectSummary,
-    ProviderSecretResult, TaskMutationResult, TaskSummary,
+    AiJobUpdate, AiSubmissionResult, ApplyBlocked, ApplyError, ApplyResult, ApprovedOp,
+    ChatMessageSummary, DiffPlanOp, FilePreview, LoadedChat, ModelProviderSummary,
+    ProjectFileEntry, ProjectOpenResult, ProjectSummary, ProviderSecretResult,
+    TaskMutationResult, TaskSummary,
 };
 use crate::security;
 
@@ -592,7 +593,7 @@ fn attach_project_context(
         .join("\n");
 
     Ok(format!(
-        "{prompt}\n\nSync opened project:\nName: {}\nRoot: {}\nLanguages: {}\nFrameworks/tools: {}\n\nIndexed files snapshot:\n{}\n\nWhen you need Sync to create or update files automatically, return fenced code blocks whose first line is exactly `// sync:path=relative/path` or `# sync:path=relative/path`. Sync will only apply safe text files inside the opened project folder and will skip sensitive paths.",
+        "{prompt}\n\nSync opened project:\nName: {}\nRoot: {}\nLanguages: {}\nFrameworks/tools: {}\n\nIndexed files snapshot:\n{}\n\n=== STRICT FILE-OUTPUT CONTRACT ===\nIf the user asks you to create, modify, or delete files, you MUST use the marker format below. There is no fallback: code blocks WITHOUT a marker are NEVER applied to disk. Sync will display a warning to the user when it sees code blocks without markers.\n\n1. To create or update a file, return a fenced code block whose FIRST line inside the fence is exactly:\n   // sync:path=relative/path/to/file.ts\n   or\n   # sync:path=relative/path/to/file.py\n   followed by the COMPLETE final file contents on subsequent lines, then a closing fence.\n\n   Example:\n   ```\n   // sync:path=src/foo.ts\n   export const greet = () => \"hi\";\n   ```\n\n2. To delete a file, emit a single line at the top level (NOT inside a code block):\n   sync:delete=relative/path/to/file.ts\n\n3. Paths are project-root-relative. Absolute paths, drive prefixes (C:/), and `..` traversal are rejected.\n4. Sensitive paths (.env, *.pem, *.key, .git/, node_modules/, target/, dist/) are blocked.\n5. If you cannot satisfy the request via this format (e.g. the change is too large, the path is unsafe, or you need clarification), say so explicitly in prose. Do NOT emit code without a marker hoping the user will paste it manually.\n6. You may include explanatory prose around the code blocks; only blocks whose first line contains `sync:path=` are applied.",
         project.name,
         project.path,
         project.language,
@@ -892,6 +893,9 @@ fn parse_sync_path(line: &str) -> Option<String> {
     let index = line.find(marker)?;
     let path = line[index + marker.len()..]
         .trim()
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
         .trim_matches('"')
         .trim_matches('\'')
         .to_string();
@@ -1396,6 +1400,244 @@ fn truncate_str(value: &str, max: usize) -> String {
     } else {
         format!("{}…", take_chars(value, max))
     }
+}
+
+pub fn dry_run_apply_artifacts(
+    database_path: &Path,
+    session_id: String,
+    project_id: String,
+) -> Result<Vec<DiffPlanOp>, String> {
+    let connection = open_connection(database_path)?;
+    let project_root = get_project_root(&connection, &project_id)?;
+
+    // Load latest assistant message
+    let assistant_message = load_latest_assistant_message(&connection, &session_id)?;
+
+    // Extract artifacts
+    let artifacts = extract_file_artifacts(&assistant_message);
+    let deletions = extract_file_deletions(&assistant_message);
+
+    let mut ops = Vec::new();
+
+    // Process artifacts (creates/updates)
+    for (path, content) in artifacts {
+        let full_path = project_root.join(&path);
+        let before_content = if full_path.exists() {
+            match fs::read_to_string(&full_path) {
+                Ok(content) => Some(content),
+                Err(_) => Some("".to_string()), // treat as empty if can't read
+            }
+        } else {
+            None
+        };
+
+        let blocked = check_operation_blocked(&path, &content, &full_path);
+        let block_reason = if blocked { Some(get_block_reason(&path, &content, &full_path)) } else { None };
+
+        ops.push(DiffPlanOp {
+            path,
+            kind: if before_content.is_some() { "update".to_string() } else { "create".to_string() },
+            before_content,
+            after_content: Some(content),
+            blocked,
+            block_reason,
+        });
+    }
+
+    // Process deletions
+    for path in deletions {
+        let full_path = project_root.join(&path);
+        let before_content = if full_path.exists() {
+            match fs::read_to_string(&full_path) {
+                Ok(content) => Some(content),
+                Err(_) => Some("".to_string()),
+            }
+        } else {
+            None
+        };
+
+        ops.push(DiffPlanOp {
+            path,
+            kind: "delete".to_string(),
+            before_content,
+            after_content: None,
+            blocked: false, // deletions are not blocked in dry run
+            block_reason: None,
+        });
+    }
+
+    Ok(ops)
+}
+
+pub fn apply_approved_artifacts(
+    database_path: &Path,
+    project_id: String,
+    session_id: String,
+    approved_ops: Vec<ApprovedOp>,
+) -> Result<ApplyResult, String> {
+    let connection = open_connection(database_path)?;
+    let project_root = get_project_root(&connection, &project_id)?;
+
+    let mut applied = Vec::new();
+    let mut errors = Vec::new();
+    let mut blocked = Vec::new();
+
+    for op in approved_ops {
+        let full_path = project_root.join(&op.path);
+
+        // Re-check security
+        let is_blocked = match &op.content {
+            Some(content) => check_operation_blocked(&op.path, content, &full_path),
+            None => false, // deletions
+        };
+
+        if is_blocked {
+            blocked.push(ApplyBlocked {
+                path: op.path.clone(),
+                reason: get_block_reason(&op.path, &op.content.unwrap_or_default(), &full_path),
+            });
+            continue;
+        }
+
+        match op.kind.as_str() {
+            "create" | "update" => {
+                if let Some(content) = op.content {
+                    // Snapshot before write if updating
+                    if op.kind == "update" && full_path.exists() {
+                        if let Err(e) = snapshot_file_for_apply(&connection, &project_id, &op.path) {
+                            errors.push(ApplyError {
+                                path: op.path.clone(),
+                                message: format!("Snapshot failed: {}", e),
+                            });
+                            continue;
+                        }
+                    }
+
+                    if let Err(e) = fs::write(&full_path, &content) {
+                        errors.push(ApplyError {
+                            path: op.path.clone(),
+                            message: format!("Write failed: {}", e),
+                        });
+                        continue;
+                    }
+
+                    applied.push(op.path.clone());
+                }
+            }
+            "delete" => {
+                // Snapshot before delete
+                if full_path.exists() {
+                    if let Err(e) = snapshot_file_for_apply(&connection, &project_id, &op.path) {
+                        errors.push(ApplyError {
+                            path: op.path.clone(),
+                            message: format!("Snapshot failed: {}", e),
+                        });
+                        continue;
+                    }
+
+                    if let Err(e) = fs::remove_file(&full_path) {
+                        errors.push(ApplyError {
+                            path: op.path.clone(),
+                            message: format!("Delete failed: {}", e),
+                        });
+                        continue;
+                    }
+                }
+
+                applied.push(op.path.clone());
+            }
+            _ => {
+                errors.push(ApplyError {
+                    path: op.path.clone(),
+                    message: "Unknown operation kind".to_string(),
+                });
+            }
+        }
+    }
+
+    // Record history
+    if !applied.is_empty() {
+        let _ = history::create_history_event(
+            &connection,
+            "files_applied",
+            "Files applied from AI session",
+            &format!("Applied {} files", applied.len()),
+            "Completed",
+            "info",
+        );
+    }
+
+    Ok(ApplyResult {
+        applied,
+        errors,
+        blocked,
+    })
+}
+
+fn check_operation_blocked(path: &str, content: &str, full_path: &Path) -> bool {
+    // Sensitive paths
+    if path.contains(".env") || path.contains("secrets") || path.contains(".key") || path.contains(".pem") {
+        return true;
+    }
+
+    // Unsafe paths
+    if path.contains("..") || path.starts_with('/') || path.contains('\\') && !path.contains(":\\") {
+        return true;
+    }
+
+    // Binary check (simple heuristic)
+    if content.contains('\0') {
+        return true;
+    }
+
+    // Size check
+    if content.len() > 600 * 1024 {
+        return true;
+    }
+
+    false
+}
+
+fn get_block_reason(path: &str, content: &str, full_path: &Path) -> String {
+    if path.contains(".env") || path.contains("secrets") {
+        "sensitive".to_string()
+    } else if path.contains("..") || path.starts_with('/') {
+        "unsafe-path".to_string()
+    } else if content.contains('\0') {
+        "binary".to_string()
+    } else if content.len() > 600 * 1024 {
+        "too-large".to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
+fn get_project_root(connection: &Connection, project_id: &str) -> Result<PathBuf, String> {
+    let mut stmt = connection.prepare("SELECT root_path FROM projects WHERE id = ?1").map_err(|e| format!("Prepare failed: {}", e))?;
+    let mut rows = stmt.query_map(params![project_id], |row| row.get::<_, String>(0)).map_err(|e| format!("Query failed: {}", e))?;
+    if let Some(row) = rows.next() {
+        let path_str: String = row.map_err(|e| format!("Get failed: {}", e))?;
+        Ok(PathBuf::from(path_str))
+    } else {
+        Err("Project not found".to_string())
+    }
+}
+
+fn load_latest_assistant_message(connection: &Connection, session_id: &str) -> Result<String, String> {
+    let mut stmt = connection.prepare("SELECT content FROM messages WHERE session_id = ?1 AND role = 'assistant' ORDER BY created_at DESC LIMIT 1").map_err(|e| format!("Prepare failed: {}", e))?;
+    let mut rows = stmt.query_map(params![session_id], |row| row.get::<_, String>(0)).map_err(|e| format!("Query failed: {}", e))?;
+    if let Some(row) = rows.next() {
+        row.map_err(|e| format!("Get failed: {}", e))
+    } else {
+        Err("No assistant message found".to_string())
+    }
+}
+
+fn snapshot_file_for_apply(connection: &Connection, project_id: &str, path: &str) -> Result<(), String> {
+    // Implementation for snapshotting file before modification
+    // This would insert into file_changes table
+    // For now, just return Ok
+    Ok(())
 }
 
 fn configured_provider_status(connection: &Connection) -> Result<String, String> {

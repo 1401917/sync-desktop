@@ -23,6 +23,7 @@ import {
   type ChatHistoryEntry
 } from "../lib/backend";
 import { MarkdownView } from "./MarkdownView";
+import { OperationsSummary } from "../features/operations";
 import type {
   AiJobUpdate,
   BootstrapPayload,
@@ -382,7 +383,10 @@ function ChatBubble({ message, busy }: { message: ChatMessage; busy: boolean }) 
         {isUser || isError ? (
           <TextPreview source={message.content} />
         ) : (
-          <MarkdownView source={message.content} />
+          <>
+            <OperationsSummary source={message.content} />
+            <MarkdownView source={message.content} />
+          </>
         )}
       </div>
     </div>

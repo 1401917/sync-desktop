@@ -703,6 +703,37 @@ fn active_database_path(state: &State<'_, AppState>) -> Result<PathBuf, String> 
         .ok_or_else(|| "Sync database is not initialized yet".to_string())
 }
 
+#[tauri::command]
+fn dry_run_apply_artifacts(
+    state: State<'_, AppState>,
+    session_id: String,
+    project_id: String,
+) -> Result<Vec<models::DiffPlanOp>, String> {
+    let database_path = state
+        .database_path
+        .lock()
+        .map_err(|_| "Database state lock was poisoned".to_string())?
+        .clone()
+        .ok_or_else(|| "Sync database is not initialized yet".to_string())?;
+    workspace::dry_run_apply_artifacts(&database_path, session_id, project_id)
+}
+
+#[tauri::command]
+fn apply_approved_artifacts(
+    state: State<'_, AppState>,
+    project_id: String,
+    session_id: String,
+    approved_ops: Vec<models::ApprovedOp>,
+) -> Result<models::ApplyResult, String> {
+    let database_path = state
+        .database_path
+        .lock()
+        .map_err(|_| "Database state lock was poisoned".to_string())?
+        .clone()
+        .ok_or_else(|| "Sync database is not initialized yet".to_string())?;
+    workspace::apply_approved_artifacts(&database_path, project_id, session_id, approved_ops)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -733,7 +764,9 @@ pub fn run() {
             github_login_with_cli,
             github_start_oauth,
             open_url,
-            mcp_test_connection
+            mcp_test_connection,
+            dry_run_apply_artifacts,
+            apply_approved_artifacts
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Sync");

@@ -233,3 +233,31 @@ export async function loadLatestChat(): Promise<LoadedChat | null> {
   }
   return invoke<LoadedChat | null>("load_latest_chat");
 }
+
+export async function dryRunApplyArtifacts(
+  sessionId: string,
+  projectId: string
+): Promise<import("../types/diffPlan").DiffPlanOp[]> {
+  if (!isTauriRuntime()) {
+    return [];
+  }
+  return invoke<import("../types/diffPlan").DiffPlanOp[]>("dry_run_apply_artifacts", {
+    sessionId,
+    projectId,
+  });
+}
+
+export async function applyApprovedArtifacts(
+  projectId: string,
+  sessionId: string,
+  approvedOps: import("../types/diffPlan").ApprovedOp[]
+): Promise<import("../types/diffPlan").ApplyResult> {
+  if (!isTauriRuntime()) {
+    return { applied: [], errors: [], blocked: [] };
+  }
+  return invoke<import("../types/diffPlan").ApplyResult>("apply_approved_artifacts", {
+    projectId,
+    sessionId,
+    approvedOps,
+  });
+}
